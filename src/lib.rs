@@ -1,3 +1,3 @@
 pub fn print_hello() {
-    println!("Hello World!");
+    log::info!("Hello World!");
 }
