@@ -1,5 +1,5 @@
 pub fn print_hello() {
-    log::info!("Hello World!");
+    println!("Hello, world!");
 }
 
 #[cfg(test)]
