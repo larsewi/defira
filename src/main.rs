@@ -1,5 +1,5 @@
 use iced::widget::{button, container, row, svg, text, Column, Space};
-use iced::{Element, Fill};
+use iced::Element;
 use log::debug;
 use std::collections::HashSet;
 use std::fs;
@@ -79,17 +79,20 @@ fn create_directory_row(
         button_size,
     );
     let filename_text = text(filename.clone()).width(text_width);
-    let add_file = create_svg_button(ADD_FILE_LOGO, FileAction::AddFile(filename.clone()), button_size);
-    let add_user = create_svg_button(ADD_USER_LOGO, FileAction::AddUser(filename), button_size);
-    row![
-        chevron,
-        filename_text,
-        Space::with_width(button_size),
-        add_file,
-        add_user
-    ]
-    .align_y(iced::Alignment::Center)
-    .into()
+    let add_file = create_svg_button(
+        ADD_FILE_LOGO,
+        FileAction::AddFile(filename.clone()),
+        button_size,
+    );
+    let add_user = create_svg_button(
+        ADD_USER_LOGO,
+        FileAction::AddUser(filename.clone()),
+        button_size,
+    );
+    let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(filename), button_size);
+    row![chevron, filename_text, add_file, add_user, delete]
+        .align_y(iced::Alignment::Center)
+        .into()
 }
 
 fn create_file_row(
@@ -145,11 +148,7 @@ fn view(_state: &State) -> Element<'_, FileAction> {
     }
 
     let file_list = Column::from_vec(buttons);
-    container(file_list)
-        .padding(10)
-        .center_x(Fill)
-        .center_y(Fill)
-        .into()
+    container(file_list).padding(10).into()
 }
 
 fn main() -> iced::Result {
