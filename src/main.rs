@@ -1,6 +1,7 @@
-use iced::widget::{button, container, row, scrollable, svg, text, Column, Space};
+use defira::assets::*;
+use iced::widget::*;
 use iced::{Element, Length};
-use log::debug;
+use log::{debug, trace};
 use std::collections::HashSet;
 use std::fs;
 
@@ -11,7 +12,7 @@ enum FileAction {
     Clipboard(String),
     DirectoryToggle(String),
     AddUser(String),
-    AddFile(String),
+    NewFile(String),
 }
 
 struct State {
@@ -26,13 +27,6 @@ impl Default for State {
     }
 }
 
-const CLIPBOARD_LOGO: &'static [u8] = include_bytes!("../assets/clipboard.svg");
-const DELETE_LOGO: &'static [u8] = include_bytes!("../assets/delete.svg");
-const EDIT_LOGO: &'static [u8] = include_bytes!("../assets/edit.svg");
-const CHEVRON_RIGHT_LOGO: &'static [u8] = include_bytes!("../assets/chevron-right.svg");
-const ADD_USER_LOGO: &'static [u8] = include_bytes!("../assets/add-user.svg");
-const ADD_FILE_LOGO: &'static [u8] = include_bytes!("../assets/add-file.svg");
-
 fn update(state: &mut State, action: FileAction) {
     match action {
         FileAction::Edit(path) => debug!("Edit clicked for path '{}'", path),
@@ -41,15 +35,15 @@ fn update(state: &mut State, action: FileAction) {
             debug!("Clipboard clicked for path '{}'", path)
         }
         FileAction::DirectoryToggle(path) => {
-            println!("Directory toggle clicked for: '{}'", path);
+            debug!("Directory toggle clicked for: '{}'", path);
             if state.expanded_directories.contains(&path) {
                 state.expanded_directories.remove(&path);
             } else {
                 state.expanded_directories.insert(path);
             }
         }
-        FileAction::AddUser(path) => println!("Add user clicked for path '{}'", path),
-        FileAction::AddFile(path) => println!("Add file clicked for path '{}'", path),
+        FileAction::AddUser(path) => debug!("Add user clicked for path '{}'", path),
+        FileAction::NewFile(path) => debug!("New file clicked for path '{}'", path),
     }
 }
 
@@ -68,10 +62,7 @@ fn create_svg_button(
         .style(button::text)
 }
 
-fn create_directory_row(
-    filename: String,
-    button_size: u16,
-) -> Element<'static, FileAction> {
+fn create_directory_row(filename: String, button_size: u16) -> Element<'static, FileAction> {
     let chevron = create_svg_button(
         CHEVRON_RIGHT_LOGO,
         FileAction::DirectoryToggle(filename.clone()),
@@ -80,7 +71,7 @@ fn create_directory_row(
     let filename_text = text(filename.clone()).width(Length::Fill);
     let add_file = create_svg_button(
         ADD_FILE_LOGO,
-        FileAction::AddFile(filename.clone()),
+        FileAction::NewFile(filename.clone()),
         button_size,
     );
     let add_user = create_svg_button(
@@ -95,10 +86,7 @@ fn create_directory_row(
         .into()
 }
 
-fn create_file_row(
-    filename: String,
-    button_size: u16,
-) -> Element<'static, FileAction> {
+fn create_file_row(filename: String, button_size: u16) -> Element<'static, FileAction> {
     let filename_text = text(filename.clone()).width(Length::Fill);
     let clipboard = create_svg_button(
         CLIPBOARD_LOGO,
@@ -130,7 +118,7 @@ fn view(_state: &State) -> Element<'_, FileAction> {
         if let Some(filename) = path.file_name() {
             let filename = filename.display().to_string();
 
-            debug!(
+            trace!(
                 "Creating row for {} {}",
                 if path.is_dir() { "directory" } else { "file" },
                 filename
@@ -148,7 +136,10 @@ fn view(_state: &State) -> Element<'_, FileAction> {
 
     let file_list = Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = scrollable(file_list);
-    container(scrollable_list).padding(10).width(Length::Fill).into()
+    container(scrollable_list)
+        .padding(10)
+        .width(Length::Fill)
+        .into()
 }
 
 fn main() -> iced::Result {
