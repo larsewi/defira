@@ -1,4 +1,4 @@
-use iced::widget::{button, container, row, svg, text, Column};
+use iced::widget::{button, container, row, svg, text, Column, Space};
 use iced::{Element, Fill};
 use log::debug;
 use std::collections::HashSet;
@@ -87,6 +87,7 @@ fn create_file_row(
     text_width: u16,
     button_size: u16,
 ) -> Element<'static, FileAction> {
+    let spacer = Space::with_width(button_size);
     let filename_text = text(filename.clone()).width(text_width);
     let clipboard = create_svg_button(
         CLIPBOARD_LOGO,
@@ -95,7 +96,7 @@ fn create_file_row(
     );
     let edit = create_svg_button(EDIT_LOGO, FileAction::Edit(filename.clone()), button_size);
     let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(filename), button_size);
-    row![filename_text, clipboard, edit, delete]
+    row![spacer, filename_text, clipboard, edit, delete]
         .align_y(iced::Alignment::Center)
         .into()
 }
