@@ -88,14 +88,14 @@ fn create_file_row(
     button_size: u16,
 ) -> Element<'static, FileAction> {
     let filename_text = text(filename.clone()).width(text_width);
-    let edit = create_svg_button(EDIT_LOGO, FileAction::Edit(filename.clone()), button_size);
-    let delete = create_svg_button(
-        DELETE_LOGO,
-        FileAction::Delete(filename.clone()),
+    let clipboard = create_svg_button(
+        CLIPBOARD_LOGO,
+        FileAction::Clipboard(filename.clone()),
         button_size,
     );
-    let clipboard = create_svg_button(CLIPBOARD_LOGO, FileAction::Clipboard(filename), button_size);
-    row![filename_text, edit, delete, clipboard]
+    let edit = create_svg_button(EDIT_LOGO, FileAction::Edit(filename.clone()), button_size);
+    let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(filename), button_size);
+    row![filename_text, clipboard, edit, delete]
         .align_y(iced::Alignment::Center)
         .into()
 }
