@@ -129,17 +129,11 @@ fn render_directory_contents(
     indent_level: u16,
     button_size: u16,
     buttons: &mut Vec<Element<FileAction>>,
-) {
-    let entries = match fs::read_dir(path) {
-        Ok(entries) => entries,
-        Err(_) => return,
-    };
+) -> std::io::Result<()> {
+    let entries = fs::read_dir(path)?;
 
     for entry in entries {
-        let entry_path = match entry {
-            Ok(e) => e.path(),
-            Err(_) => continue,
-        };
+        let entry_path = entry?.path();
 
         if let Some(filename) = entry_path.file_name() {
             let filename = filename.display().to_string();
@@ -175,7 +169,7 @@ fn render_directory_contents(
                         indent_level + 1,
                         button_size,
                         buttons,
-                    );
+                    )?;
                 }
             } else if entry_path.is_file() {
                 let row = create_file_row(filename, button_size, indent_level);
@@ -183,6 +177,8 @@ fn render_directory_contents(
             }
         }
     }
+
+    Ok(())
 }
 
 fn view(state: &State) -> Element<'_, FileAction> {
@@ -191,13 +187,15 @@ fn view(state: &State) -> Element<'_, FileAction> {
     let button_height = 42;
 
     // Render contents of current directory (starting at indent level 0)
-    render_directory_contents(
+    if let Err(err) = render_directory_contents(
         &std::path::Path::new("./"),
         state,
         0,
         button_height,
         &mut buttons,
-    );
+    ) {
+        debug!("Error rendering directory contents: {}", err);
+    }
 
     let file_list = Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = scrollable(file_list);
