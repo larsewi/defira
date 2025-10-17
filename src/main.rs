@@ -27,6 +27,21 @@ fn update(state: &mut State, action: FileAction) {
     }
 }
 
+fn create_svg_button(
+    svg_data: &'static [u8],
+    action: FileAction,
+    size: u16,
+) -> button::Button<'static, FileAction> {
+    let icon = svg(svg::Handle::from_memory(svg_data))
+        .width(size)
+        .height(size);
+    button(icon)
+        .on_press(action)
+        .height(size)
+        .width(size)
+        .style(button::text)
+}
+
 fn view(_state: &State) -> Element<'_, FileAction> {
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
@@ -45,34 +60,9 @@ fn view(_state: &State) -> Element<'_, FileAction> {
             debug!("Creating row for file {}", filename);
 
             let filename = text(filename.to_string()).width(filename_width);
-
-            let edit = svg(svg::Handle::from_memory(EDIT_LOGO))
-                .width(button_height)
-                .height(button_height);
-            let edit = button(edit)
-                .on_press(FileAction::Edit)
-                .height(button_height)
-                .width(button_height)
-                .style(button::text);
-
-            let delete = svg(svg::Handle::from_memory(DELETE_LOGO))
-                .width(button_height)
-                .height(button_height);
-            let delete = button(delete)
-                .on_press(FileAction::Delete)
-                .height(button_height)
-                .width(button_height)
-                .style(button::text);
-
-            let clipboard = svg(svg::Handle::from_memory(CLIPBOARD_LOGO))
-                .width(button_height)
-                .height(button_height);
-            let clipboard = button(clipboard)
-                .on_press(FileAction::Clipboard)
-                .height(button_height)
-                .width(button_height)
-                .style(button::text);
-
+            let edit = create_svg_button(EDIT_LOGO, FileAction::Edit, button_height);
+            let delete = create_svg_button(DELETE_LOGO, FileAction::Delete, button_height);
+            let clipboard = create_svg_button(CLIPBOARD_LOGO, FileAction::Clipboard, button_height);
             let listing = row![filename, edit, delete, clipboard].align_y(iced::Alignment::Center);
 
             buttons.push(listing.into());
