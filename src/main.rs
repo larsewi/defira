@@ -11,6 +11,7 @@ enum FileAction {
     Clipboard(String),
     DirectoryToggle(String),
     AddUser(String),
+    AddFile(String),
 }
 
 struct State {
@@ -30,6 +31,7 @@ const DELETE_LOGO: &'static [u8] = include_bytes!("../assets/delete.svg");
 const EDIT_LOGO: &'static [u8] = include_bytes!("../assets/edit.svg");
 const CHEVRON_RIGHT_LOGO: &'static [u8] = include_bytes!("../assets/chevron-right.svg");
 const ADD_USER_LOGO: &'static [u8] = include_bytes!("../assets/add-user.svg");
+const ADD_FILE_LOGO: &'static [u8] = include_bytes!("../assets/add-file.svg");
 
 fn update(state: &mut State, action: FileAction) {
     match action {
@@ -47,6 +49,7 @@ fn update(state: &mut State, action: FileAction) {
             }
         }
         FileAction::AddUser(path) => println!("Add user clicked for path '{}'", path),
+        FileAction::AddFile(path) => println!("Add file clicked for path '{}'", path),
     }
 }
 
@@ -76,12 +79,13 @@ fn create_directory_row(
         button_size,
     );
     let filename_text = text(filename.clone()).width(text_width);
+    let add_file = create_svg_button(ADD_FILE_LOGO, FileAction::AddFile(filename.clone()), button_size);
     let add_user = create_svg_button(ADD_USER_LOGO, FileAction::AddUser(filename), button_size);
     row![
         chevron,
         filename_text,
         Space::with_width(button_size),
-        Space::with_width(button_size),
+        add_file,
         add_user
     ]
     .align_y(iced::Alignment::Center)
