@@ -1,5 +1,5 @@
 use iced::widget::{button, container, row, svg, text, Column, Space};
-use iced::Element;
+use iced::{Element, Length};
 use log::debug;
 use std::collections::HashSet;
 use std::fs;
@@ -70,7 +70,6 @@ fn create_svg_button(
 
 fn create_directory_row(
     filename: String,
-    text_width: u16,
     button_size: u16,
 ) -> Element<'static, FileAction> {
     let chevron = create_svg_button(
@@ -78,7 +77,7 @@ fn create_directory_row(
         FileAction::DirectoryToggle(filename.clone()),
         button_size,
     );
-    let filename_text = text(filename.clone()).width(text_width);
+    let filename_text = text(filename.clone()).width(Length::Fill);
     let add_file = create_svg_button(
         ADD_FILE_LOGO,
         FileAction::AddFile(filename.clone()),
@@ -92,15 +91,15 @@ fn create_directory_row(
     let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(filename), button_size);
     row![chevron, filename_text, add_file, add_user, delete]
         .align_y(iced::Alignment::Center)
+        .width(Length::Fill)
         .into()
 }
 
 fn create_file_row(
     filename: String,
-    text_width: u16,
     button_size: u16,
 ) -> Element<'static, FileAction> {
-    let filename_text = text(filename.clone()).width(text_width);
+    let filename_text = text(filename.clone()).width(Length::Fill);
     let clipboard = create_svg_button(
         CLIPBOARD_LOGO,
         FileAction::Clipboard(filename.clone()),
@@ -116,13 +115,13 @@ fn create_file_row(
         delete
     ]
     .align_y(iced::Alignment::Center)
+    .width(Length::Fill)
     .into()
 }
 
 fn view(_state: &State) -> Element<'_, FileAction> {
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
-    let filename_width = 512;
     let button_height = 42;
 
     let entries = fs::read_dir("./").unwrap();
@@ -138,17 +137,17 @@ fn view(_state: &State) -> Element<'_, FileAction> {
             );
 
             let row = if path.is_dir() {
-                create_directory_row(filename, filename_width, button_height)
+                create_directory_row(filename, button_height)
             } else {
-                create_file_row(filename, filename_width, button_height)
+                create_file_row(filename, button_height)
             };
 
             buttons.push(row);
         }
     }
 
-    let file_list = Column::from_vec(buttons);
-    container(file_list).padding(10).into()
+    let file_list = Column::from_vec(buttons).width(Length::Fill);
+    container(file_list).padding(10).width(Length::Fill).into()
 }
 
 fn main() -> iced::Result {
