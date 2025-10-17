@@ -1,4 +1,4 @@
-use iced::widget::{button, container, row, svg, text, Column, Space};
+use iced::widget::{button, container, row, scrollable, svg, text, Column, Space};
 use iced::{Element, Length};
 use log::debug;
 use std::collections::HashSet;
@@ -147,7 +147,8 @@ fn view(_state: &State) -> Element<'_, FileAction> {
     }
 
     let file_list = Column::from_vec(buttons).width(Length::Fill);
-    container(file_list).padding(10).width(Length::Fill).into()
+    let scrollable_list = scrollable(file_list);
+    container(scrollable_list).padding(10).width(Length::Fill).into()
 }
 
 fn main() -> iced::Result {
