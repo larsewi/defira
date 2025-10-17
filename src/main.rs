@@ -1,11 +1,13 @@
-use iced::widget::{button, container, text, Column};
+use iced::widget::{button, container, row, svg, text, Column};
 use iced::{Element, Fill};
 use log::trace;
 use std::fs;
 
 #[derive(Debug, Clone)]
 enum FileAction {
-    OnClick,
+    Edit,
+    Delete,
+    Clipboard,
 }
 
 #[derive(Default)]
@@ -13,9 +15,15 @@ struct State {
     path: String,
 }
 
+const CLIPBOARD_LOGO: &'static [u8] = include_bytes!("../assets/clipboard.svg");
+const DELETE_LOGO: &'static [u8] = include_bytes!("../assets/delete.svg");
+const EDIT_LOGO: &'static [u8] = include_bytes!("../assets/edit.svg");
+
 fn update(state: &mut State, action: FileAction) {
     match action {
-        FileAction::OnClick => state.path = String::from("../"),
+        FileAction::Edit => println!("Edit clicked"),
+        FileAction::Delete => println!("Delete clicked"),
+        FileAction::Clipboard => println!("Clipboard clicked"),
     }
 }
 
@@ -26,15 +34,38 @@ fn view(_state: &State) -> Element<'_, FileAction> {
     for entry in entries {
         let path = entry.unwrap().path();
         if let Some(filename) = path.file_name() {
-            let filename = filename.display();
-            let typ = if path.is_dir() { "directory" } else { "file" };
-            trace!("Creating button for {} {}", typ, filename);
+            if path.is_dir() {
+                continue;
+            }
 
-            let btn = button(text(filename.to_string()))
-                .width(1000)
-                .on_press(FileAction::OnClick)
-                .into();
-            buttons.push(btn);
+            let filename = filename.display();
+            trace!("Creating row for file {}", filename);
+
+            let filename = text(filename.to_string()).width(100);
+
+            let size = 40;
+
+            let edit = svg(svg::Handle::from_memory(EDIT_LOGO));
+            let edit = button(edit)
+                .on_press(FileAction::Edit)
+                .height(size)
+                .width(size);
+
+            let delete = svg(svg::Handle::from_memory(DELETE_LOGO));
+            let delete = button(delete)
+                .on_press(FileAction::Delete)
+                .height(size)
+                .width(size);
+
+            let clipboard = svg(svg::Handle::from_memory(CLIPBOARD_LOGO));
+            let clipboard = button(clipboard)
+                .on_press(FileAction::Clipboard)
+                .height(size)
+                .width(size);
+
+            let listing = row![filename, edit, delete, clipboard];
+
+            buttons.push(listing.into());
         }
     }
 
@@ -49,5 +80,5 @@ fn view(_state: &State) -> Element<'_, FileAction> {
 fn main() -> iced::Result {
     env_logger::init();
     defira::print_hello();
-    iced::run("A cool counter", update, view)
+    iced::run("defira", update, view)
 }
