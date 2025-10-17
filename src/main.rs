@@ -37,8 +37,10 @@ fn update(state: &mut State, action: FileAction) {
         FileAction::DirectoryToggle(path) => {
             debug!("Directory toggle clicked for: '{}'", path);
             if state.expanded_directories.contains(&path) {
+                debug!("Directory '{}' is collapsed", path);
                 state.expanded_directories.remove(&path);
             } else {
+                debug!("Directory '{}' is expanded", path);
                 state.expanded_directories.insert(path);
             }
         }
@@ -62,9 +64,18 @@ fn create_svg_button(
         .style(button::text)
 }
 
-fn create_directory_row(filename: String, button_size: u16) -> Element<'static, FileAction> {
+fn create_directory_row(
+    filename: String,
+    button_size: u16,
+    is_expanded: bool,
+) -> Element<'static, FileAction> {
+    let chevron_logo = if is_expanded {
+        CHEVRON_DOWN_LOGO
+    } else {
+        CHEVRON_RIGHT_LOGO
+    };
     let chevron = create_svg_button(
-        CHEVRON_RIGHT_LOGO,
+        chevron_logo,
         FileAction::DirectoryToggle(filename.clone()),
         button_size,
     );
@@ -107,7 +118,7 @@ fn create_file_row(filename: String, button_size: u16) -> Element<'static, FileA
     .into()
 }
 
-fn view(_state: &State) -> Element<'_, FileAction> {
+fn view(state: &State) -> Element<'_, FileAction> {
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
     let button_height = 42;
@@ -125,7 +136,8 @@ fn view(_state: &State) -> Element<'_, FileAction> {
             );
 
             let row = if path.is_dir() {
-                create_directory_row(filename, button_height)
+                let is_expanded = state.expanded_directories.contains(&filename);
+                create_directory_row(filename, button_height, is_expanded)
             } else {
                 create_file_row(filename, button_height)
             };
