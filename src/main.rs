@@ -135,14 +135,14 @@ fn view(state: &State) -> Element<'_, FileAction> {
                 filename
             );
 
-            let row = if path.is_dir() {
+            if path.is_dir() {
                 let is_expanded = state.expanded_directories.contains(&filename);
-                create_directory_row(filename, button_height, is_expanded)
-            } else {
-                create_file_row(filename, button_height)
-            };
-
-            buttons.push(row);
+                let row = create_directory_row(filename, button_height, is_expanded);
+                buttons.push(row);
+            } else if path.is_file() {
+                let row = create_file_row(filename, button_height);
+                buttons.push(row);
+            }
         }
     }
 
