@@ -65,6 +65,41 @@ fn create_svg_button(
         .style(button::text)
 }
 
+fn create_directory_row(
+    filename: String,
+    text_width: u16,
+    button_size: u16,
+) -> Element<'static, FileAction> {
+    let chevron = create_svg_button(
+        CHEVRON_RIGHT_LOGO,
+        FileAction::DirectoryToggle(filename.clone()),
+        button_size,
+    );
+    let filename_text = text(filename.clone()).width(text_width);
+    let add_user = create_svg_button(ADD_USER_LOGO, FileAction::AddUser(filename), button_size);
+    row![chevron, filename_text, add_user]
+        .align_y(iced::Alignment::Center)
+        .into()
+}
+
+fn create_file_row(
+    filename: String,
+    text_width: u16,
+    button_size: u16,
+) -> Element<'static, FileAction> {
+    let filename_text = text(filename.clone()).width(text_width);
+    let edit = create_svg_button(EDIT_LOGO, FileAction::Edit(filename.clone()), button_size);
+    let delete = create_svg_button(
+        DELETE_LOGO,
+        FileAction::Delete(filename.clone()),
+        button_size,
+    );
+    let clipboard = create_svg_button(CLIPBOARD_LOGO, FileAction::Clipboard(filename), button_size);
+    row![filename_text, edit, delete, clipboard]
+        .align_y(iced::Alignment::Center)
+        .into()
+}
+
 fn view(_state: &State) -> Element<'_, FileAction> {
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
@@ -75,51 +110,21 @@ fn view(_state: &State) -> Element<'_, FileAction> {
     for entry in entries {
         let path = entry.unwrap().path();
         if let Some(filename) = path.file_name() {
-            let filename_str = filename.display().to_string();
+            let filename = filename.display().to_string();
 
             debug!(
                 "Creating row for {} {}",
                 if path.is_dir() { "directory" } else { "file" },
-                filename_str
+                filename
             );
-            if path.is_dir() {
-                let chevron = create_svg_button(
-                    CHEVRON_RIGHT_LOGO,
-                    FileAction::DirectoryToggle(filename_str.clone()),
-                    button_height,
-                );
-                let filename_text = text(filename_str.clone()).width(filename_width);
-                let add_user = create_svg_button(
-                    ADD_USER_LOGO,
-                    FileAction::AddUser(filename_str),
-                    button_height,
-                );
-                let listing =
-                    row![chevron, filename_text, add_user].align_y(iced::Alignment::Center);
 
-                buttons.push(listing.into());
+            let row = if path.is_dir() {
+                create_directory_row(filename, filename_width, button_height)
             } else {
-                let filename_text = text(filename_str.clone()).width(filename_width);
-                let edit = create_svg_button(
-                    EDIT_LOGO,
-                    FileAction::Edit(filename_str.clone()),
-                    button_height,
-                );
-                let delete = create_svg_button(
-                    DELETE_LOGO,
-                    FileAction::Delete(filename_str.clone()),
-                    button_height,
-                );
-                let clipboard = create_svg_button(
-                    CLIPBOARD_LOGO,
-                    FileAction::Clipboard(filename_str),
-                    button_height,
-                );
-                let listing =
-                    row![filename_text, edit, delete, clipboard].align_y(iced::Alignment::Center);
+                create_file_row(filename, filename_width, button_height)
+            };
 
-                buttons.push(listing.into());
-            }
+            buttons.push(row);
         }
     }
 
