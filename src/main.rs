@@ -1,6 +1,6 @@
 use iced::widget::{button, container, row, svg, text, Column};
 use iced::{Element, Fill};
-use log::trace;
+use log::debug;
 use std::fs;
 
 #[derive(Debug, Clone)]
@@ -42,7 +42,7 @@ fn view(_state: &State) -> Element<'_, FileAction> {
             }
 
             let filename = filename.display();
-            trace!("Creating row for file {}", filename);
+            debug!("Creating row for file {}", filename);
 
             let filename = text(filename.to_string()).width(filename_width);
 
