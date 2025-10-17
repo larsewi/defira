@@ -31,7 +31,7 @@ fn view(_state: &State) -> Element<'_, FileAction> {
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
     let filename_width = 120;
-    let button_height = 32;
+    let button_height = 42;
 
     let entries = fs::read_dir("./").unwrap();
     for entry in entries {
@@ -52,7 +52,8 @@ fn view(_state: &State) -> Element<'_, FileAction> {
             let edit = button(edit)
                 .on_press(FileAction::Edit)
                 .height(button_height)
-                .width(button_height);
+                .width(button_height)
+                .style(button::text);
 
             let delete = svg(svg::Handle::from_memory(DELETE_LOGO))
                 .width(button_height)
@@ -60,7 +61,8 @@ fn view(_state: &State) -> Element<'_, FileAction> {
             let delete = button(delete)
                 .on_press(FileAction::Delete)
                 .height(button_height)
-                .width(button_height);
+                .width(button_height)
+                .style(button::text);
 
             let clipboard = svg(svg::Handle::from_memory(CLIPBOARD_LOGO))
                 .width(button_height)
@@ -68,9 +70,10 @@ fn view(_state: &State) -> Element<'_, FileAction> {
             let clipboard = button(clipboard)
                 .on_press(FileAction::Clipboard)
                 .height(button_height)
-                .width(button_height);
+                .width(button_height)
+                .style(button::text);
 
-            let listing = row![filename, edit, delete, clipboard];
+            let listing = row![filename, edit, delete, clipboard].align_y(iced::Alignment::Center);
 
             buttons.push(listing.into());
         }
