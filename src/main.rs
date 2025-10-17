@@ -1,7 +1,7 @@
 use defira::assets::*;
 use iced::widget::*;
 use iced::{Element, Length};
-use log::{debug, trace};
+use log::{debug, error, trace};
 use std::collections::HashSet;
 use std::fs;
 
@@ -194,7 +194,7 @@ fn view(state: &State) -> Element<'_, FileAction> {
         button_height,
         &mut buttons,
     ) {
-        debug!("Error rendering directory contents: {}", err);
+        error!("Error rendering directory contents: {}", err);
     }
 
     let file_list = Column::from_vec(buttons).width(Length::Fill);
