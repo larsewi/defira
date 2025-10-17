@@ -77,9 +77,15 @@ fn create_directory_row(
     );
     let filename_text = text(filename.clone()).width(text_width);
     let add_user = create_svg_button(ADD_USER_LOGO, FileAction::AddUser(filename), button_size);
-    row![chevron, filename_text, add_user]
-        .align_y(iced::Alignment::Center)
-        .into()
+    row![
+        chevron,
+        filename_text,
+        Space::with_width(button_size),
+        Space::with_width(button_size),
+        add_user
+    ]
+    .align_y(iced::Alignment::Center)
+    .into()
 }
 
 fn create_file_row(
@@ -87,7 +93,6 @@ fn create_file_row(
     text_width: u16,
     button_size: u16,
 ) -> Element<'static, FileAction> {
-    let spacer = Space::with_width(button_size);
     let filename_text = text(filename.clone()).width(text_width);
     let clipboard = create_svg_button(
         CLIPBOARD_LOGO,
@@ -96,15 +101,21 @@ fn create_file_row(
     );
     let edit = create_svg_button(EDIT_LOGO, FileAction::Edit(filename.clone()), button_size);
     let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(filename), button_size);
-    row![spacer, filename_text, clipboard, edit, delete]
-        .align_y(iced::Alignment::Center)
-        .into()
+    row![
+        Space::with_width(button_size),
+        filename_text,
+        clipboard,
+        edit,
+        delete
+    ]
+    .align_y(iced::Alignment::Center)
+    .into()
 }
 
 fn view(_state: &State) -> Element<'_, FileAction> {
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
-    let filename_width = 120;
+    let filename_width = 512;
     let button_height = 42;
 
     let entries = fs::read_dir("./").unwrap();
