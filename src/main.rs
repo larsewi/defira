@@ -30,6 +30,9 @@ fn update(state: &mut State, action: FileAction) {
 fn view(_state: &State) -> Element<'_, FileAction> {
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
+    let filename_width = 120;
+    let button_height = 32;
+
     let entries = fs::read_dir("./").unwrap();
     for entry in entries {
         let path = entry.unwrap().path();
@@ -41,27 +44,31 @@ fn view(_state: &State) -> Element<'_, FileAction> {
             let filename = filename.display();
             trace!("Creating row for file {}", filename);
 
-            let filename = text(filename.to_string()).width(100);
+            let filename = text(filename.to_string()).width(filename_width);
 
-            let size = 40;
-
-            let edit = svg(svg::Handle::from_memory(EDIT_LOGO));
+            let edit = svg(svg::Handle::from_memory(EDIT_LOGO))
+                .width(button_height)
+                .height(button_height);
             let edit = button(edit)
                 .on_press(FileAction::Edit)
-                .height(size)
-                .width(size);
+                .height(button_height)
+                .width(button_height);
 
-            let delete = svg(svg::Handle::from_memory(DELETE_LOGO));
+            let delete = svg(svg::Handle::from_memory(DELETE_LOGO))
+                .width(button_height)
+                .height(button_height);
             let delete = button(delete)
                 .on_press(FileAction::Delete)
-                .height(size)
-                .width(size);
+                .height(button_height)
+                .width(button_height);
 
-            let clipboard = svg(svg::Handle::from_memory(CLIPBOARD_LOGO));
+            let clipboard = svg(svg::Handle::from_memory(CLIPBOARD_LOGO))
+                .width(button_height)
+                .height(button_height);
             let clipboard = button(clipboard)
                 .on_press(FileAction::Clipboard)
-                .height(size)
-                .width(size);
+                .height(button_height)
+                .width(button_height);
 
             let listing = row![filename, edit, delete, clipboard];
 
