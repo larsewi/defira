@@ -82,8 +82,8 @@ fn create_directory_row(
         button_size,
     );
     let filename_text = text(filename.clone()).width(Length::Fill);
-    let add_file = create_svg_button(
-        ADD_FILE_LOGO,
+    let new_file = create_svg_button(
+        NEW_FILE_LOGO,
         FileAction::NewFile(path.clone()),
         button_size,
     );
@@ -95,7 +95,7 @@ fn create_directory_row(
     let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(path), button_size);
 
     let indent = Space::with_width(button_size * indent_level);
-    row![indent, chevron, filename_text, add_file, add_user, delete]
+    row![indent, chevron, filename_text, new_file, add_user, delete]
         .align_y(iced::Alignment::Center)
         .width(Length::Fill)
         .into()
