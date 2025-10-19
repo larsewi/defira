@@ -66,7 +66,7 @@ fn create_svg_button(
 
 fn create_directory_row(
     filename: String,
-    path: String,
+    full_path: String,
     button_size: u16,
     is_expanded: bool,
     indent_level: u16,
@@ -78,21 +78,21 @@ fn create_directory_row(
     };
     let chevron = create_svg_button(
         chevron,
-        FileAction::DirectoryToggle(path.clone()),
+        FileAction::DirectoryToggle(full_path.clone()),
         button_size,
     );
     let filename_text = text(filename.clone()).width(Length::Fill);
     let new_file = create_svg_button(
         NEW_FILE_LOGO,
-        FileAction::NewFile(path.clone()),
+        FileAction::NewFile(full_path.clone()),
         button_size,
     );
     let add_user = create_svg_button(
         ADD_USER_LOGO,
-        FileAction::AddUser(path.clone()),
+        FileAction::AddUser(full_path.clone()),
         button_size,
     );
-    let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(path), button_size);
+    let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(full_path), button_size);
 
     let indent = Space::with_width(button_size * indent_level);
     row![indent, chevron, filename_text, new_file, add_user, delete]
@@ -103,17 +103,18 @@ fn create_directory_row(
 
 fn create_file_row(
     filename: String,
+    full_path: String,
     button_size: u16,
     indent_level: u16,
 ) -> Element<'static, FileAction> {
     let text = text(filename.clone()).width(Length::Fill);
     let clipboard = create_svg_button(
         CLIPBOARD_LOGO,
-        FileAction::Clipboard(filename.clone()),
+        FileAction::Clipboard(full_path.clone()),
         button_size,
     );
-    let edit = create_svg_button(EDIT_LOGO, FileAction::Edit(filename.clone()), button_size);
-    let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(filename), button_size);
+    let edit = create_svg_button(EDIT_LOGO, FileAction::Edit(full_path.clone()), button_size);
+    let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(full_path), button_size);
 
     // Files are indented one level more than directories (to account for chevron button)
     let indent = Space::with_width(button_size * (indent_level + 1));
@@ -134,6 +135,7 @@ fn render_directory_contents(
 
     for entry in entries {
         let entry_path = entry?.path();
+        let full_path = entry_path.display().to_string();
 
         if let Some(filename) = entry_path.file_name() {
             let filename = filename.display().to_string();
@@ -150,7 +152,6 @@ fn render_directory_contents(
             );
 
             if entry_path.is_dir() {
-                let full_path = entry_path.display().to_string();
                 let is_expanded = state.expanded_directories.contains(&full_path);
                 let row = create_directory_row(
                     filename,
@@ -172,7 +173,7 @@ fn render_directory_contents(
                     )?;
                 }
             } else if entry_path.is_file() {
-                let row = create_file_row(filename, button_size, indent_level);
+                let row = create_file_row(filename, full_path, button_size, indent_level);
                 buttons.push(row);
             }
         }
@@ -188,7 +189,7 @@ fn view(state: &State) -> Element<'_, FileAction> {
 
     // Render contents of current directory (starting at indent level 0)
     if let Err(err) = render_directory_contents(
-        &std::path::Path::new("./"),
+        &std::path::Path::new("."),
         state,
         0,
         button_height,
