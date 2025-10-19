@@ -65,8 +65,8 @@ fn create_svg_button(
 }
 
 fn create_directory_row(
-    filename: String,
-    full_path: String,
+    filename: &str,
+    full_path: &str,
     button_size: u16,
     is_expanded: bool,
     indent_level: u16,
@@ -78,21 +78,25 @@ fn create_directory_row(
     };
     let chevron = create_svg_button(
         chevron,
-        FileAction::DirectoryToggle(full_path.clone()),
+        FileAction::DirectoryToggle(full_path.to_string()),
         button_size,
     );
-    let filename_text = text(filename.clone()).width(Length::Fill);
+    let filename_text = text(filename.to_string()).width(Length::Fill);
     let new_file = create_svg_button(
         NEW_FILE_LOGO,
-        FileAction::NewFile(full_path.clone()),
+        FileAction::NewFile(full_path.to_string()),
         button_size,
     );
     let add_user = create_svg_button(
         ADD_USER_LOGO,
-        FileAction::AddUser(full_path.clone()),
+        FileAction::AddUser(full_path.to_string()),
         button_size,
     );
-    let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(full_path), button_size);
+    let delete = create_svg_button(
+        DELETE_LOGO,
+        FileAction::Delete(full_path.to_string()),
+        button_size,
+    );
 
     let indent = Space::with_width(button_size * indent_level);
     row![indent, chevron, filename_text, new_file, add_user, delete]
@@ -102,19 +106,27 @@ fn create_directory_row(
 }
 
 fn create_file_row(
-    filename: String,
-    full_path: String,
+    filename: &str,
+    full_path: &str,
     button_size: u16,
     indent_level: u16,
 ) -> Element<'static, FileAction> {
-    let text = text(filename.clone()).width(Length::Fill);
+    let text = text(filename.to_string()).width(Length::Fill);
     let clipboard = create_svg_button(
         CLIPBOARD_LOGO,
-        FileAction::Clipboard(full_path.clone()),
+        FileAction::Clipboard(full_path.to_string()),
         button_size,
     );
-    let edit = create_svg_button(EDIT_LOGO, FileAction::Edit(full_path.clone()), button_size);
-    let delete = create_svg_button(DELETE_LOGO, FileAction::Delete(full_path), button_size);
+    let edit = create_svg_button(
+        EDIT_LOGO,
+        FileAction::Edit(full_path.to_string()),
+        button_size,
+    );
+    let delete = create_svg_button(
+        DELETE_LOGO,
+        FileAction::Delete(full_path.to_string()),
+        button_size,
+    );
 
     // Files are indented one level more than directories (to account for chevron button)
     let indent = Space::with_width(button_size * (indent_level + 1));
@@ -154,8 +166,8 @@ fn render_directory_contents(
             if entry_path.is_dir() {
                 let is_expanded = state.expanded_directories.contains(&full_path);
                 let row = create_directory_row(
-                    filename,
-                    full_path,
+                    &filename,
+                    &full_path,
                     button_size,
                     is_expanded,
                     indent_level,
@@ -173,7 +185,7 @@ fn render_directory_contents(
                     )?;
                 }
             } else if entry_path.is_file() {
-                let row = create_file_row(filename, full_path, button_size, indent_level);
+                let row = create_file_row(&filename, &full_path, button_size, indent_level);
                 buttons.push(row);
             }
         }
