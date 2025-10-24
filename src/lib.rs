@@ -1,5 +1,3 @@
-pub mod assets;
-
 pub fn print_hello() {
     println!("Hello, world!");
 }
