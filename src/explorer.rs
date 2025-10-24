@@ -7,9 +7,8 @@ use std::fs;
 
 #[derive(Debug, Clone)]
 pub enum FileAction {
-    DirectoryToggle(String),
-    Select(String),
-    ContextMenu(String),
+    Select(String, bool),
+    ContextMenu(String, bool),
 }
 
 pub struct State {
@@ -28,40 +27,29 @@ impl Default for State {
 
 pub fn update(state: &mut State, action: FileAction) {
     match action {
-        FileAction::DirectoryToggle(path) => {
-            debug!("Directory toggle clicked for: '{}'", path);
-            if state.expanded.contains(&path) {
-                debug!("Directory '{}' is collapsed", path);
-                state.expanded.remove(&path);
-            } else {
-                debug!("Directory '{}' is expanded", path);
-                state.expanded.insert(path);
+        FileAction::Select(path, is_dir) => {
+            if is_dir {
+                if state.expanded.contains(&path) {
+                    debug!("Directory '{}' is expanded", path);
+                    state.expanded.remove(&path);
+                } else {
+                    debug!("Directory '{}' is collapsed", path);
+                    state.expanded.insert(path.clone());
+                }
             }
-        }
-        FileAction::Select(path) => {
-            debug!["Path '{}' clicked", path];
-            if state.selected.contains(&path) {
-                debug!("Path '{}' is unselected", path);
-                state.selected.remove(&path);
-            } else {
+
+            if !state.selected.contains(&path) {
                 debug!("Path '{}' is selected", path);
+                state.selected.clear();
                 state.selected.insert(path);
             }
         }
-        FileAction::ContextMenu(path) => debug!("Context menu clicked for path '{}'", path),
+        FileAction::ContextMenu(path, is_dir) => debug!(
+            "Context menu clicked for {} '{}'",
+            if is_dir { "directory" } else { "secret" },
+            path
+        ),
     }
-}
-
-fn create_svg_button(
-    svg_data: &'static [u8],
-    action: FileAction,
-    size: u16,
-) -> widget::button::Button<'static, FileAction> {
-    let icon = widget::svg(widget::svg::Handle::from_memory(svg_data));
-    widget::button(icon)
-        .on_press(action)
-        .width(size)
-        .style(widget::button::text)
 }
 
 fn create_row(
@@ -69,59 +57,45 @@ fn create_row(
     full_path: &str,
     button_size: u16,
     is_directory: bool,
-    is_expanded: bool,
     indent_level: u16,
 ) -> Element<'static, FileAction> {
-    let mut row = widget::row![]
+    let indent = widget::Space::with_width(button_size * indent_level);
+    let asset = widget::svg::Handle::from_memory(if is_directory {
+        assets::FOLDER_LOGO
+    } else {
+        assets::SECRET_LOGO
+    });
+    let icon = widget::svg(asset).height(20).width(20);
+    let space = widget::Space::with_width(10);
+    let text = widget::text!["{}", filename].width(Length::Fill);
+    let row = widget::row![indent, icon, space, text]
         .align_y(iced::Alignment::Center)
         .width(Length::Fill);
 
-    if is_directory {
-        row = row.push(widget::Space::with_width(button_size * indent_level));
-        let chevron = if is_expanded {
-            assets::CHEVRON_DOWN_LOGO
-        } else {
-            assets::CHEVRON_RIGHT_LOGO
-        };
-        let chevron = create_svg_button(
-            chevron,
-            FileAction::DirectoryToggle(full_path.to_string()),
-            button_size,
-        );
-        row = row.push(chevron);
-    } else {
-        /* Files are indented one level more than directories (to account for no
-         * chevron button at the beginning  */
-        row = row.push(widget::Space::with_width(
-            (button_size * indent_level) + (button_size * 1),
-        ));
-    }
-    row = row.push(widget::text!["{}", filename].width(Length::Fill));
+    let button = widget::button(row)
+        .on_press(FileAction::Select(full_path.to_string(), is_directory))
+        .style(|theme: &iced::Theme, status| {
+            let base = widget::button::Style {
+                background: None,
+                text_color: theme.palette().text,
+                border: iced::Border::default(),
+                shadow: iced::Shadow::default(),
+            };
+            match status {
+                widget::button::Status::Hovered => widget::button::Style {
+                    background: Some(iced::Background::Color(iced::Color::from_rgba(
+                        0.3, 0.5, 0.8, 0.3,
+                    ))),
+                    ..base
+                },
+                _ => base,
+            }
+        })
+        .width(Length::Fill);
 
-    widget::mouse_area(
-        widget::button(row)
-            .on_press(FileAction::Select(full_path.to_string()))
-            .style(|theme: &iced::Theme, status| {
-                let base = widget::button::Style {
-                    background: None,
-                    text_color: theme.palette().text,
-                    border: iced::Border::default(),
-                    shadow: iced::Shadow::default(),
-                };
-                match status {
-                    widget::button::Status::Hovered => widget::button::Style {
-                        background: Some(iced::Background::Color(iced::Color::from_rgba(
-                            0.3, 0.5, 0.8, 0.3,
-                        ))),
-                        ..base
-                    },
-                    _ => base,
-                }
-            })
-            .width(Length::Fill),
-    )
-    .on_right_press(FileAction::ContextMenu(full_path.to_string()))
-    .into()
+    widget::mouse_area(button)
+        .on_right_press(FileAction::ContextMenu(full_path.to_string(), is_directory))
+        .into()
 }
 
 fn render_directory_contents(
@@ -157,7 +131,6 @@ fn render_directory_contents(
                 &full_path,
                 indent_size,
                 entry_path.is_dir(),
-                is_expanded,
                 indent_level,
             );
             buttons.push(row);
