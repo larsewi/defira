@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub const CLIPBOARD_LOGO: &'static [u8] = include_bytes!("../assets/clipboard.svg");
 pub const DELETE_LOGO: &'static [u8] = include_bytes!("../assets/delete.svg");
 pub const EDIT_LOGO: &'static [u8] = include_bytes!("../assets/edit.svg");
