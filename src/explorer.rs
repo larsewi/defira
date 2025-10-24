@@ -104,11 +104,28 @@ fn render_directory_contents(
     indent_level: u16,
     indent_width: u16,
     buttons: &mut Vec<Element<FileAction>>,
-) -> std::io::Result<()> {
-    let entries = fs::read_dir(path)?;
+) {
+    let entries = match fs::read_dir(path) {
+        Ok(v) => v,
+        Err(e) => {
+            error!("Failed to read directory '{}': {}", path.display(), e);
+            return;
+        }
+    };
 
     for entry in entries {
-        let entry_path = entry?.path();
+        let entry_path = match entry {
+            Ok(v) => v.path(),
+            Err(e) => {
+                error!(
+                    "Failed to get entry from directory '{}': {}",
+                    path.display(),
+                    e
+                );
+                continue;
+            }
+        };
+
         let full_path = entry_path.display().to_string();
 
         if let Some(filename) = entry_path.file_name() {
@@ -144,13 +161,11 @@ fn render_directory_contents(
                         indent_level + 1,
                         indent_width,
                         buttons,
-                    )?;
+                    );
                 }
             }
         }
     }
-
-    Ok(())
 }
 
 pub fn view(state: &State) -> Element<'_, FileAction> {
@@ -159,11 +174,7 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
     let indent_width = 24;
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
-    if let Err(err) =
-        render_directory_contents(&dir, state, INDENT_LEVEL, indent_width, &mut buttons)
-    {
-        error!("Error rendering directory contents: {}", err);
-    }
+    render_directory_contents(&dir, state, INDENT_LEVEL, indent_width, &mut buttons);
 
     let file_list = widget::Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = widget::scrollable(file_list);
