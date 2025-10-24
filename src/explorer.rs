@@ -55,17 +55,17 @@ pub fn update(state: &mut State, action: FileAction) {
 fn create_row(
     filename: &str,
     full_path: &str,
-    button_size: u16,
+    indent_width: u16,
     is_directory: bool,
     indent_level: u16,
 ) -> Element<'static, FileAction> {
-    let indent = widget::Space::with_width(button_size * indent_level);
+    let indent = widget::Space::with_width(indent_width * indent_level);
     let asset = widget::svg::Handle::from_memory(if is_directory {
         assets::FOLDER_LOGO
     } else {
         assets::SECRET_LOGO
     });
-    let icon = widget::svg(asset).height(20).width(20);
+    let icon = widget::svg(asset).width(20);
     let space = widget::Space::with_width(10);
     let text = widget::text!["{}", filename].width(Length::Fill);
     let row = widget::row![indent, icon, space, text]
@@ -102,7 +102,7 @@ fn render_directory_contents(
     path: &std::path::Path,
     state: &State,
     indent_level: u16,
-    indent_size: u16,
+    indent_width: u16,
     buttons: &mut Vec<Element<FileAction>>,
 ) -> std::io::Result<()> {
     let entries = fs::read_dir(path)?;
@@ -129,7 +129,7 @@ fn render_directory_contents(
             let row = create_row(
                 &filename,
                 &full_path,
-                indent_size,
+                indent_width,
                 entry_path.is_dir(),
                 indent_level,
             );
@@ -142,7 +142,7 @@ fn render_directory_contents(
                         &entry_path,
                         state,
                         indent_level + 1,
-                        indent_size,
+                        indent_width,
                         buttons,
                     )?;
                 }
@@ -156,11 +156,11 @@ fn render_directory_contents(
 pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
     let dir = std::path::Path::new(".");
-    let button_height = 32;
+    let indent_width = 24;
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
     if let Err(err) =
-        render_directory_contents(&dir, state, INDENT_LEVEL, button_height, &mut buttons)
+        render_directory_contents(&dir, state, INDENT_LEVEL, indent_width, &mut buttons)
     {
         error!("Error rendering directory contents: {}", err);
     }
