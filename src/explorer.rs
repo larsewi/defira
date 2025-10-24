@@ -125,26 +125,27 @@ fn create_directory_row(
 fn create_file_row(
     filename: &str,
     full_path: &str,
-    button_size: u16,
+    indent_size: u16,
     indent_level: u16,
 ) -> Element<'static, FileAction> {
-    // Files are indented one level more than directories (to account for no chevron button)
-    let indent = widget::Space::with_width(button_size * (indent_level + 1));
+    /* Files are indented one level more than directories (to account for no
+     * chevron button at the beginning  */
+    let indent = widget::Space::with_width(indent_size * (indent_level + 1));
     let text = widget::text!["{}", filename].width(Length::Fill);
     let clipboard = create_svg_button(
         assets::CLIPBOARD_LOGO,
         FileAction::Clipboard(full_path.to_string()),
-        button_size,
+        indent_size,
     );
     let edit = create_svg_button(
         assets::EDIT_LOGO,
         FileAction::Edit(full_path.to_string()),
-        button_size,
+        indent_size,
     );
     let delete = create_svg_button(
         assets::DELETE_LOGO,
         FileAction::Delete(full_path.to_string()),
-        button_size,
+        indent_size,
     );
     widget::button(
         widget::row![indent, text, clipboard, edit, delete]
@@ -161,7 +162,7 @@ fn render_directory_contents(
     path: &std::path::Path,
     state: &State,
     indent_level: u16,
-    button_size: u16,
+    indent_size: u16,
     buttons: &mut Vec<Element<FileAction>>,
 ) -> std::io::Result<()> {
     let entries = fs::read_dir(path)?;
@@ -189,7 +190,7 @@ fn render_directory_contents(
                 let row = create_directory_row(
                     &filename,
                     &full_path,
-                    button_size,
+                    indent_size,
                     is_expanded,
                     indent_level,
                 );
@@ -201,12 +202,12 @@ fn render_directory_contents(
                         &entry_path,
                         state,
                         indent_level + 1,
-                        button_size,
+                        indent_size,
                         buttons,
                     )?;
                 }
             } else if entry_path.is_file() {
-                let row = create_file_row(&filename, &full_path, button_size, indent_level);
+                let row = create_file_row(&filename, &full_path, indent_size, indent_level);
                 buttons.push(row);
             }
         }
