@@ -13,19 +13,20 @@ pub enum FileAction {
     DirectoryToggle(String),
     AddUser(String),
     NewFile(String),
-    Highlight(String),
+    Select(String),
+    ContextMenu(String),
 }
 
 pub struct State {
     expanded: HashSet<String>,
-    highlighted: HashSet<String>,
+    selected: HashSet<String>,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
             expanded: HashSet::new(),
-            highlighted: HashSet::new(),
+            selected: HashSet::new(),
         }
     }
 }
@@ -49,16 +50,17 @@ pub fn update(state: &mut State, action: FileAction) {
         }
         FileAction::AddUser(path) => debug!("Add user clicked for path '{}'", path),
         FileAction::NewFile(path) => debug!("New file clicked for path '{}'", path),
-        FileAction::Highlight(path) => {
+        FileAction::Select(path) => {
             debug!["Path '{}' clicked", path];
-            if state.highlighted.contains(&path) {
+            if state.selected.contains(&path) {
                 debug!("Path '{}' is unselected", path);
-                state.highlighted.remove(&path);
+                state.selected.remove(&path);
             } else {
                 debug!("Path '{}' is selected", path);
-                state.highlighted.insert(path);
+                state.selected.insert(path);
             }
         }
+        FileAction::ContextMenu(path) => debug!("Context menu clicked for path '{}'", path),
     }
 }
 
@@ -111,14 +113,13 @@ fn create_directory_row(
         FileAction::Delete(full_path.to_string()),
         button_size,
     );
-    widget::button(
+    widget::mouse_area(
         widget::row![indent, chevron, text, new_file, add_user, delete]
             .align_y(iced::Alignment::Center)
             .width(Length::Fill),
     )
-    .on_press(FileAction::Highlight(full_path.to_string()))
-    .width(Length::Fill)
-    .style(widget::button::text)
+    .on_press(FileAction::Select(full_path.to_string()))
+    .on_right_press(FileAction::ContextMenu(full_path.to_string()))
     .into()
 }
 
@@ -147,14 +148,13 @@ fn create_file_row(
         FileAction::Delete(full_path.to_string()),
         indent_size,
     );
-    widget::button(
+    widget::mouse_area(
         widget::row![indent, text, clipboard, edit, delete]
             .align_y(iced::Alignment::Center)
             .width(Length::Fill),
     )
-    .on_press(FileAction::Highlight(full_path.to_string()))
-    .width(Length::Fill)
-    .style(widget::button::text)
+    .on_press(FileAction::Select(full_path.to_string()))
+    .on_right_press(FileAction::ContextMenu(full_path.to_string()))
     .into()
 }
 
