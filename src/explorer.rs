@@ -216,18 +216,14 @@ fn render_directory_contents(
 }
 
 pub fn view(state: &State) -> Element<'_, FileAction> {
+    const INDENT_LEVEL: u16 = 0;
+    let dir = std::path::Path::new(".");
+    let button_height = 42;
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
-    let button_height = 42;
-
-    // Render contents of current directory (starting at indent level 0)
-    if let Err(err) = render_directory_contents(
-        &std::path::Path::new("."),
-        state,
-        0,
-        button_height,
-        &mut buttons,
-    ) {
+    if let Err(err) =
+        render_directory_contents(&dir, state, INDENT_LEVEL, button_height, &mut buttons)
+    {
         error!("Error rendering directory contents: {}", err);
     }
 
