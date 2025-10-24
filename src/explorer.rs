@@ -7,12 +7,7 @@ use std::fs;
 
 #[derive(Debug, Clone)]
 pub enum FileAction {
-    Edit(String),
-    Delete(String),
-    Clipboard(String),
     DirectoryToggle(String),
-    AddUser(String),
-    NewFile(String),
     Select(String),
     ContextMenu(String),
 }
@@ -33,11 +28,6 @@ impl Default for State {
 
 pub fn update(state: &mut State, action: FileAction) {
     match action {
-        FileAction::Edit(path) => debug!("Edit clicked for path '{}'", path),
-        FileAction::Delete(path) => debug!("Delete clicked for path '{}'", path),
-        FileAction::Clipboard(path) => {
-            debug!("Clipboard clicked for path '{}'", path)
-        }
         FileAction::DirectoryToggle(path) => {
             debug!("Directory toggle clicked for: '{}'", path);
             if state.expanded.contains(&path) {
@@ -48,8 +38,6 @@ pub fn update(state: &mut State, action: FileAction) {
                 state.expanded.insert(path);
             }
         }
-        FileAction::AddUser(path) => debug!("Add user clicked for path '{}'", path),
-        FileAction::NewFile(path) => debug!("New file clicked for path '{}'", path),
         FileAction::Select(path) => {
             debug!["Path '{}' clicked", path];
             if state.selected.contains(&path) {
@@ -69,91 +57,69 @@ fn create_svg_button(
     action: FileAction,
     size: u16,
 ) -> widget::button::Button<'static, FileAction> {
-    let icon = widget::svg(widget::svg::Handle::from_memory(svg_data))
-        .width(size)
-        .height(size);
+    let icon = widget::svg(widget::svg::Handle::from_memory(svg_data));
     widget::button(icon)
         .on_press(action)
-        .height(size)
         .width(size)
         .style(widget::button::text)
 }
 
-fn create_directory_row(
+fn create_row(
     filename: &str,
     full_path: &str,
     button_size: u16,
+    is_directory: bool,
     is_expanded: bool,
     indent_level: u16,
 ) -> Element<'static, FileAction> {
-    let indent = widget::Space::with_width(button_size * indent_level);
-    let chevron = if is_expanded {
-        assets::CHEVRON_DOWN_LOGO
-    } else {
-        assets::CHEVRON_RIGHT_LOGO
-    };
-    let chevron = create_svg_button(
-        chevron,
-        FileAction::DirectoryToggle(full_path.to_string()),
-        button_size,
-    );
-    let text = widget::text!["{}", filename].width(Length::Fill);
-    let new_file = create_svg_button(
-        assets::NEW_FILE_LOGO,
-        FileAction::NewFile(full_path.to_string()),
-        button_size,
-    );
-    let add_user = create_svg_button(
-        assets::ADD_USER_LOGO,
-        FileAction::AddUser(full_path.to_string()),
-        button_size,
-    );
-    let delete = create_svg_button(
-        assets::DELETE_LOGO,
-        FileAction::Delete(full_path.to_string()),
-        button_size,
-    );
-    widget::mouse_area(
-        widget::row![indent, chevron, text, new_file, add_user, delete]
-            .align_y(iced::Alignment::Center)
-            .width(Length::Fill),
-    )
-    .on_press(FileAction::Select(full_path.to_string()))
-    .on_right_press(FileAction::ContextMenu(full_path.to_string()))
-    .into()
-}
+    let mut row = widget::row![]
+        .align_y(iced::Alignment::Center)
+        .width(Length::Fill);
 
-fn create_file_row(
-    filename: &str,
-    full_path: &str,
-    indent_size: u16,
-    indent_level: u16,
-) -> Element<'static, FileAction> {
-    /* Files are indented one level more than directories (to account for no
-     * chevron button at the beginning  */
-    let indent = widget::Space::with_width(indent_size * (indent_level + 1));
-    let text = widget::text!["{}", filename].width(Length::Fill);
-    let clipboard = create_svg_button(
-        assets::CLIPBOARD_LOGO,
-        FileAction::Clipboard(full_path.to_string()),
-        indent_size,
-    );
-    let edit = create_svg_button(
-        assets::EDIT_LOGO,
-        FileAction::Edit(full_path.to_string()),
-        indent_size,
-    );
-    let delete = create_svg_button(
-        assets::DELETE_LOGO,
-        FileAction::Delete(full_path.to_string()),
-        indent_size,
-    );
+    if is_directory {
+        row = row.push(widget::Space::with_width(button_size * indent_level));
+        let chevron = if is_expanded {
+            assets::CHEVRON_DOWN_LOGO
+        } else {
+            assets::CHEVRON_RIGHT_LOGO
+        };
+        let chevron = create_svg_button(
+            chevron,
+            FileAction::DirectoryToggle(full_path.to_string()),
+            button_size,
+        );
+        row = row.push(chevron);
+    } else {
+        /* Files are indented one level more than directories (to account for no
+         * chevron button at the beginning  */
+        row = row.push(widget::Space::with_width(
+            (button_size * indent_level) + (button_size * 1),
+        ));
+    }
+    row = row.push(widget::text!["{}", filename].width(Length::Fill));
+
     widget::mouse_area(
-        widget::row![indent, text, clipboard, edit, delete]
-            .align_y(iced::Alignment::Center)
+        widget::button(row)
+            .on_press(FileAction::Select(full_path.to_string()))
+            .style(|theme: &iced::Theme, status| {
+                let base = widget::button::Style {
+                    background: None,
+                    text_color: theme.palette().text,
+                    border: iced::Border::default(),
+                    shadow: iced::Shadow::default(),
+                };
+                match status {
+                    widget::button::Status::Hovered => widget::button::Style {
+                        background: Some(iced::Background::Color(iced::Color::from_rgba(
+                            0.3, 0.5, 0.8, 0.3,
+                        ))),
+                        ..base
+                    },
+                    _ => base,
+                }
+            })
             .width(Length::Fill),
     )
-    .on_press(FileAction::Select(full_path.to_string()))
     .on_right_press(FileAction::ContextMenu(full_path.to_string()))
     .into()
 }
@@ -185,17 +151,18 @@ fn render_directory_contents(
                 indent_level
             );
 
-            if entry_path.is_dir() {
-                let is_expanded = state.expanded.contains(&full_path);
-                let row = create_directory_row(
-                    &filename,
-                    &full_path,
-                    indent_size,
-                    is_expanded,
-                    indent_level,
-                );
-                buttons.push(row);
+            let is_expanded = state.expanded.contains(&full_path);
+            let row = create_row(
+                &filename,
+                &full_path,
+                indent_size,
+                entry_path.is_dir(),
+                is_expanded,
+                indent_level,
+            );
+            buttons.push(row);
 
+            if entry_path.is_dir() {
                 // If directory is expanded, recursively render its contents
                 if is_expanded {
                     render_directory_contents(
@@ -206,9 +173,6 @@ fn render_directory_contents(
                         buttons,
                     )?;
                 }
-            } else if entry_path.is_file() {
-                let row = create_file_row(&filename, &full_path, indent_size, indent_level);
-                buttons.push(row);
             }
         }
     }
@@ -219,7 +183,7 @@ fn render_directory_contents(
 pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
     let dir = std::path::Path::new(".");
-    let button_height = 42;
+    let button_height = 32;
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
     if let Err(err) =
