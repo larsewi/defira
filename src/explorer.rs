@@ -1,5 +1,5 @@
 use crate::assets;
-use iced::widget::*;
+use iced::widget;
 use iced::{Element, Length};
 use log::{debug, error, trace};
 use std::collections::HashSet;
@@ -13,16 +13,19 @@ pub enum FileAction {
     DirectoryToggle(String),
     AddUser(String),
     NewFile(String),
+    Highlight(String),
 }
 
 pub struct State {
-    expanded_directories: HashSet<String>,
+    expanded: HashSet<String>,
+    highlighted: HashSet<String>,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
-            expanded_directories: HashSet::new(),
+            expanded: HashSet::new(),
+            highlighted: HashSet::new(),
         }
     }
 }
@@ -36,16 +39,26 @@ pub fn update(state: &mut State, action: FileAction) {
         }
         FileAction::DirectoryToggle(path) => {
             debug!("Directory toggle clicked for: '{}'", path);
-            if state.expanded_directories.contains(&path) {
+            if state.expanded.contains(&path) {
                 debug!("Directory '{}' is collapsed", path);
-                state.expanded_directories.remove(&path);
+                state.expanded.remove(&path);
             } else {
                 debug!("Directory '{}' is expanded", path);
-                state.expanded_directories.insert(path);
+                state.expanded.insert(path);
             }
         }
         FileAction::AddUser(path) => debug!("Add user clicked for path '{}'", path),
         FileAction::NewFile(path) => debug!("New file clicked for path '{}'", path),
+        FileAction::Highlight(path) => {
+            debug!["Path '{}' clicked", path];
+            if state.highlighted.contains(&path) {
+                debug!("Path '{}' is unselected", path);
+                state.highlighted.remove(&path);
+            } else {
+                debug!("Path '{}' is selected", path);
+                state.highlighted.insert(path);
+            }
+        }
     }
 }
 
@@ -53,15 +66,15 @@ fn create_svg_button(
     svg_data: &'static [u8],
     action: FileAction,
     size: u16,
-) -> button::Button<'static, FileAction> {
-    let icon = svg(svg::Handle::from_memory(svg_data))
+) -> widget::button::Button<'static, FileAction> {
+    let icon = widget::svg(widget::svg::Handle::from_memory(svg_data))
         .width(size)
         .height(size);
-    button(icon)
+    widget::button(icon)
         .on_press(action)
         .height(size)
         .width(size)
-        .style(button::text)
+        .style(widget::button::text)
 }
 
 fn create_directory_row(
@@ -71,6 +84,7 @@ fn create_directory_row(
     is_expanded: bool,
     indent_level: u16,
 ) -> Element<'static, FileAction> {
+    let indent = widget::Space::with_width(button_size * indent_level);
     let chevron = if is_expanded {
         assets::CHEVRON_DOWN_LOGO
     } else {
@@ -81,7 +95,7 @@ fn create_directory_row(
         FileAction::DirectoryToggle(full_path.to_string()),
         button_size,
     );
-    let filename_text = text(filename.to_string()).width(Length::Fill);
+    let text = widget::text!["{}", filename].width(Length::Fill);
     let new_file = create_svg_button(
         assets::NEW_FILE_LOGO,
         FileAction::NewFile(full_path.to_string()),
@@ -97,12 +111,15 @@ fn create_directory_row(
         FileAction::Delete(full_path.to_string()),
         button_size,
     );
-
-    let indent = Space::with_width(button_size * indent_level);
-    row![indent, chevron, filename_text, new_file, add_user, delete]
-        .align_y(iced::Alignment::Center)
-        .width(Length::Fill)
-        .into()
+    widget::button(
+        widget::row![indent, chevron, text, new_file, add_user, delete]
+            .align_y(iced::Alignment::Center)
+            .width(Length::Fill),
+    )
+    .on_press(FileAction::Highlight(full_path.to_string()))
+    .width(Length::Fill)
+    .style(widget::button::text)
+    .into()
 }
 
 fn create_file_row(
@@ -111,7 +128,9 @@ fn create_file_row(
     button_size: u16,
     indent_level: u16,
 ) -> Element<'static, FileAction> {
-    let text = text(filename.to_string()).width(Length::Fill);
+    // Files are indented one level more than directories (to account for no chevron button)
+    let indent = widget::Space::with_width(button_size * (indent_level + 1));
+    let text = widget::text!["{}", filename].width(Length::Fill);
     let clipboard = create_svg_button(
         assets::CLIPBOARD_LOGO,
         FileAction::Clipboard(full_path.to_string()),
@@ -127,13 +146,15 @@ fn create_file_row(
         FileAction::Delete(full_path.to_string()),
         button_size,
     );
-
-    // Files are indented one level more than directories (to account for chevron button)
-    let indent = Space::with_width(button_size * (indent_level + 1));
-    row![indent, text, clipboard, edit, delete]
-        .align_y(iced::Alignment::Center)
-        .width(Length::Fill)
-        .into()
+    widget::button(
+        widget::row![indent, text, clipboard, edit, delete]
+            .align_y(iced::Alignment::Center)
+            .width(Length::Fill),
+    )
+    .on_press(FileAction::Highlight(full_path.to_string()))
+    .width(Length::Fill)
+    .style(widget::button::text)
+    .into()
 }
 
 fn render_directory_contents(
@@ -164,7 +185,7 @@ fn render_directory_contents(
             );
 
             if entry_path.is_dir() {
-                let is_expanded = state.expanded_directories.contains(&full_path);
+                let is_expanded = state.expanded.contains(&full_path);
                 let row = create_directory_row(
                     &filename,
                     &full_path,
@@ -210,9 +231,9 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
         error!("Error rendering directory contents: {}", err);
     }
 
-    let file_list = Column::from_vec(buttons).width(Length::Fill);
-    let scrollable_list = scrollable(file_list);
-    container(scrollable_list)
+    let file_list = widget::Column::from_vec(buttons).width(Length::Fill);
+    let scrollable_list = widget::scrollable(file_list);
+    widget::container(scrollable_list)
         .padding(10)
         .width(Length::Fill)
         .into()
