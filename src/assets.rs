@@ -5,3 +5,4 @@ pub const CHEVRON_RIGHT_LOGO: &'static [u8] = include_bytes!("../assets/chevron-
 pub const CHEVRON_DOWN_LOGO: &'static [u8] = include_bytes!("../assets/chevron-down.svg");
 pub const ADD_USER_LOGO: &'static [u8] = include_bytes!("../assets/add-user.svg");
 pub const NEW_FILE_LOGO: &'static [u8] = include_bytes!("../assets/add-file.svg");
+pub const FOLDER_LOGO: &'static [u8] = include_bytes!("../assets/folder.svg");
