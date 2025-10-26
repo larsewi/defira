@@ -52,13 +52,13 @@ pub fn update(state: &mut State, action: FileAction) {
     }
 }
 
-fn create_row(
+fn create_row<'a>(
     filename: &str,
     full_path: &str,
     indent_width: u16,
     is_directory: bool,
     indent_level: u16,
-) -> Element<'static, FileAction> {
+) -> Element<'a, FileAction> {
     let indent = widget::Space::with_width(indent_width * indent_level);
     let asset = widget::svg::Handle::from_memory(if is_directory {
         assets::FOLDER_LOGO
