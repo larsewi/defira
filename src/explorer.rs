@@ -8,12 +8,23 @@ use std::fs;
 #[derive(Debug, Clone)]
 pub enum FileAction {
     Select(String, bool),
-    ContextMenu(String, bool),
+    ContextMenu(String, bool, iced::Point),
+    CloseContextMenu,
+    DeleteItem(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextMenuState {
+    pub target_path: String,
+    #[allow(dead_code)]
+    pub is_directory: bool,
+    pub position: iced::Point,
 }
 
 pub struct State {
     expanded: HashSet<String>,
     selected: HashSet<String>,
+    context_menu: Option<ContextMenuState>,
 }
 
 impl Default for State {
@@ -21,6 +32,7 @@ impl Default for State {
         Self {
             expanded: HashSet::new(),
             selected: HashSet::new(),
+            context_menu: None,
         }
     }
 }
@@ -43,12 +55,53 @@ pub fn update(state: &mut State, action: FileAction) {
                 state.selected.clear();
                 state.selected.insert(path);
             }
+
+            // Close context menu on any selection
+            state.context_menu = None;
         }
-        FileAction::ContextMenu(path, is_dir) => debug!(
-            "Context menu clicked for {} '{}'",
-            if is_dir { "directory" } else { "secret" },
-            path
-        ),
+        FileAction::ContextMenu(path, is_dir, position) => {
+            debug!(
+                "Context menu opened for {} '{}' at position ({}, {})",
+                if is_dir { "directory" } else { "secret" },
+                path,
+                position.x,
+                position.y
+            );
+            state.context_menu = Some(ContextMenuState {
+                target_path: path,
+                is_directory: is_dir,
+                position,
+            });
+        }
+        FileAction::CloseContextMenu => {
+            debug!("Context menu closed");
+            state.context_menu = None;
+        }
+        FileAction::DeleteItem(path) => {
+            debug!("Deleting: {}", path);
+            let path_obj = std::path::Path::new(&path);
+            let result = if path_obj.is_dir() {
+                fs::remove_dir_all(&path)
+            } else {
+                fs::remove_file(&path)
+            };
+
+            match result {
+                Ok(_) => {
+                    debug!("Successfully deleted: {}", path);
+                    // Remove from selected set if it was selected
+                    state.selected.remove(&path);
+                    // Remove from expanded set if it was expanded
+                    state.expanded.remove(&path);
+                }
+                Err(e) => {
+                    error!("Failed to delete '{}': {}", path, e);
+                }
+            }
+
+            // Close context menu
+            state.context_menu = None;
+        }
     }
 }
 
@@ -94,7 +147,11 @@ fn create_row<'a>(
         .width(Length::Fill);
 
     widget::mouse_area(button)
-        .on_right_press(FileAction::ContextMenu(full_path.to_string(), is_directory))
+        .on_right_press(FileAction::ContextMenu(
+            full_path.to_string(),
+            is_directory,
+            iced::Point::new(100.0 + (indent_level as f32 * indent_width as f32), 50.0),
+        ))
         .into()
 }
 
@@ -168,6 +225,67 @@ fn render_directory_contents(
     }
 }
 
+fn view_context_menu(menu_state: &ContextMenuState) -> Element<'_, FileAction> {
+    // Create the delete button with icon
+    let delete_icon = widget::svg(widget::svg::Handle::from_memory(assets::DELETE_LOGO)).width(16);
+    let delete_text = widget::text("Delete").size(14);
+    let delete_row = widget::row![delete_icon, widget::Space::with_width(8), delete_text]
+        .align_y(iced::Alignment::Center)
+        .padding(8);
+
+    let delete_button = widget::button(delete_row)
+        .on_press(FileAction::DeleteItem(menu_state.target_path.clone()))
+        .style(|theme: &iced::Theme, status| {
+            let base = widget::button::Style {
+                background: Some(iced::Background::Color(iced::Color::WHITE)),
+                text_color: theme.palette().text,
+                border: iced::Border::default(),
+                shadow: iced::Shadow::default(),
+            };
+            match status {
+                widget::button::Status::Hovered => widget::button::Style {
+                    background: Some(iced::Background::Color(iced::Color::from_rgba(
+                        0.3, 0.5, 0.8, 0.3,
+                    ))),
+                    ..base
+                },
+                _ => base,
+            }
+        })
+        .width(Length::Fill);
+
+    // Create the menu container
+    let menu = widget::container(widget::column![delete_button])
+        .padding(4)
+        .style(|theme: &iced::Theme| widget::container::Style {
+            background: Some(iced::Background::Color(iced::Color::WHITE)),
+            text_color: Some(theme.palette().text),
+            border: iced::Border {
+                color: iced::Color::from_rgb(0.7, 0.7, 0.7),
+                width: 1.0,
+                radius: 4.0.into(),
+            },
+            shadow: iced::Shadow {
+                color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.2),
+                offset: iced::Vector::new(2.0, 2.0),
+                blur_radius: 8.0,
+            },
+        })
+        .width(150);
+
+    // Position the menu using absolute positioning via container
+    widget::container(menu)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding(iced::Padding {
+            top: menu_state.position.y,
+            left: menu_state.position.x,
+            right: 0.0,
+            bottom: 0.0,
+        })
+        .into()
+}
+
 pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
     let dir = std::path::Path::new(".");
@@ -178,8 +296,26 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
 
     let file_list = widget::Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = widget::scrollable(file_list);
-    widget::container(scrollable_list)
+    let main_content = widget::container(scrollable_list)
         .padding(10)
-        .width(Length::Fill)
-        .into()
+        .width(Length::Fill);
+
+    // If context menu is open, render it on top
+    if let Some(menu_state) = &state.context_menu {
+        // Create a click-outside-to-dismiss layer
+        let dismiss_layer = widget::mouse_area(widget::container(widget::Space::new(
+            Length::Fill,
+            Length::Fill,
+        )))
+        .on_press(FileAction::CloseContextMenu);
+
+        // Stack: main content, dismiss layer, context menu
+        widget::Stack::new()
+            .push(main_content)
+            .push(dismiss_layer)
+            .push(view_context_menu(menu_state))
+            .into()
+    } else {
+        main_content.into()
+    }
 }
