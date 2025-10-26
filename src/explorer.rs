@@ -8,9 +8,10 @@ use std::fs;
 #[derive(Debug, Clone)]
 pub enum FileAction {
     Select(String, bool),
-    ContextMenu(String, bool, iced::Point),
+    ContextMenu(String, bool),
     CloseContextMenu,
     DeleteItem(String),
+    CursorMoved(iced::Point),
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +26,7 @@ pub struct State {
     expanded: HashSet<String>,
     selected: HashSet<String>,
     context_menu: Option<ContextMenuState>,
+    cursor_position: iced::Point,
 }
 
 impl Default for State {
@@ -33,6 +35,7 @@ impl Default for State {
             expanded: HashSet::new(),
             selected: HashSet::new(),
             context_menu: None,
+            cursor_position: iced::Point::ORIGIN,
         }
     }
 }
@@ -59,18 +62,18 @@ pub fn update(state: &mut State, action: FileAction) {
             // Close context menu on any selection
             state.context_menu = None;
         }
-        FileAction::ContextMenu(path, is_dir, position) => {
+        FileAction::ContextMenu(path, is_dir) => {
             debug!(
                 "Context menu opened for {} '{}' at position ({}, {})",
                 if is_dir { "directory" } else { "secret" },
                 path,
-                position.x,
-                position.y
+                state.cursor_position.x,
+                state.cursor_position.y
             );
             state.context_menu = Some(ContextMenuState {
                 target_path: path,
                 is_directory: is_dir,
-                position,
+                position: state.cursor_position,
             });
         }
         FileAction::CloseContextMenu => {
@@ -101,6 +104,9 @@ pub fn update(state: &mut State, action: FileAction) {
 
             // Close context menu
             state.context_menu = None;
+        }
+        FileAction::CursorMoved(position) => {
+            state.cursor_position = position;
         }
     }
 }
@@ -147,11 +153,7 @@ fn create_row<'a>(
         .width(Length::Fill);
 
     widget::mouse_area(button)
-        .on_right_press(FileAction::ContextMenu(
-            full_path.to_string(),
-            is_directory,
-            iced::Point::new(100.0 + (indent_level as f32 * indent_width as f32), 50.0),
-        ))
+        .on_right_press(FileAction::ContextMenu(full_path.to_string(), is_directory))
         .into()
 }
 
@@ -273,17 +275,15 @@ fn view_context_menu(menu_state: &ContextMenuState) -> Element<'_, FileAction> {
         })
         .width(150);
 
-    // Position the menu using absolute positioning via container
-    widget::container(menu)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .padding(iced::Padding {
-            top: menu_state.position.y,
-            left: menu_state.position.x,
-            right: 0.0,
-            bottom: 0.0,
-        })
-        .into()
+    // Position the menu using Space widgets so it doesn't block clicks
+    widget::column![
+        widget::Space::with_height(menu_state.position.y),
+        widget::row![
+            widget::Space::with_width(menu_state.position.x),
+            menu,
+        ],
+    ]
+    .into()
 }
 
 pub fn view(state: &State) -> Element<'_, FileAction> {
@@ -301,7 +301,7 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
         .width(Length::Fill);
 
     // If context menu is open, render it on top
-    if let Some(menu_state) = &state.context_menu {
+    let content: Element<'_, FileAction> = if let Some(menu_state) = &state.context_menu {
         // Create a click-outside-to-dismiss layer
         let dismiss_layer = widget::mouse_area(widget::container(widget::Space::new(
             Length::Fill,
@@ -317,5 +317,10 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
             .into()
     } else {
         main_content.into()
-    }
+    };
+
+    // Wrap everything in a mouse_area to track cursor position
+    widget::mouse_area(content)
+        .on_move(FileAction::CursorMoved)
+        .into()
 }
