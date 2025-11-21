@@ -68,7 +68,11 @@ pub fn update(state: &mut State, action: FileAction) {
             let path_obj = std::path::Path::new(&path);
             debug!(
                 "Context menu opened for {} '{}' at position ({}, {})",
-                if path_obj.is_dir() { "directory" } else { "secret" },
+                if path_obj.is_dir() {
+                    "directory"
+                } else {
+                    "secret"
+                },
                 path,
                 state.cursor_position.x,
                 state.cursor_position.y
