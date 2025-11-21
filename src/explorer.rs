@@ -228,14 +228,13 @@ fn render_directory_contents(
     }
 }
 
-
 pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
     let dir = std::path::Path::new(".");
     let indent_width = 24;
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
-    render_directory_contents(&dir, state, INDENT_LEVEL, indent_width, &mut buttons);
+    render_directory_contents(dir, state, INDENT_LEVEL, indent_width, &mut buttons);
 
     let file_list = widget::Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = widget::scrollable(file_list);
@@ -260,15 +259,17 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
         widget::Stack::new()
             .push(main_content)
             .push(dismiss_layer)
-            .push(menu).height(Length::Fill).width(Length::Fill)
+            .push(menu)
+            .height(Length::Fill)
+            .width(Length::Fill)
             .into()
     } else {
         main_content.into()
     };
 
     // Wrap everything in a mouse_area to track cursor position
-    widget::container(
-        widget::mouse_area(content)
-            .on_move(FileAction::CursorMoved)
-    ).height(Length::Fill).width(Length::Fill).into()
+    widget::container(widget::mouse_area(content).on_move(FileAction::CursorMoved))
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .into()
 }
