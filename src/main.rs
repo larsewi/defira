@@ -1,4 +1,5 @@
 mod assets;
+mod context_menu;
 mod explorer;
 
 fn main() -> iced::Result {

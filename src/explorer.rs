@@ -1,4 +1,5 @@
 use crate::assets;
+use crate::context_menu;
 use iced::widget;
 use iced::{Element, Length};
 use log::{debug, error, trace};
@@ -227,64 +228,6 @@ fn render_directory_contents(
     }
 }
 
-fn view_context_menu(menu_state: &ContextMenuState) -> Element<'_, FileAction> {
-    // Create the delete button with icon
-    let delete_icon = widget::svg(widget::svg::Handle::from_memory(assets::DELETE_LOGO)).width(16);
-    let delete_text = widget::text("Delete").size(14);
-    let delete_row = widget::row![delete_icon, widget::Space::with_width(8), delete_text]
-        .align_y(iced::Alignment::Center)
-        .padding(8);
-
-    let delete_button = widget::button(delete_row)
-        .on_press(FileAction::DeleteItem(menu_state.target_path.clone()))
-        .style(|theme: &iced::Theme, status| {
-            let base = widget::button::Style {
-                background: Some(iced::Background::Color(iced::Color::WHITE)),
-                text_color: theme.palette().text,
-                border: iced::Border::default(),
-                shadow: iced::Shadow::default(),
-            };
-            match status {
-                widget::button::Status::Hovered => widget::button::Style {
-                    background: Some(iced::Background::Color(iced::Color::from_rgba(
-                        0.3, 0.5, 0.8, 0.3,
-                    ))),
-                    ..base
-                },
-                _ => base,
-            }
-        })
-        .width(Length::Fill);
-
-    // Create the menu container
-    let menu = widget::container(widget::column![delete_button])
-        .padding(4)
-        .style(|theme: &iced::Theme| widget::container::Style {
-            background: Some(iced::Background::Color(iced::Color::WHITE)),
-            text_color: Some(theme.palette().text),
-            border: iced::Border {
-                color: iced::Color::from_rgb(0.7, 0.7, 0.7),
-                width: 1.0,
-                radius: 4.0.into(),
-            },
-            shadow: iced::Shadow {
-                color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.2),
-                offset: iced::Vector::new(2.0, 2.0),
-                blur_radius: 8.0,
-            },
-        })
-        .width(150);
-
-    // Position the menu using Space widgets so it doesn't block clicks
-    widget::column![
-        widget::Space::with_height(menu_state.position.y),
-        widget::row![
-            widget::Space::with_width(menu_state.position.x),
-            menu,
-        ],
-    ]
-    .into()
-}
 
 pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
@@ -302,25 +245,30 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
 
     // If context menu is open, render it on top
     let content: Element<'_, FileAction> = if let Some(menu_state) = &state.context_menu {
-        // Create a click-outside-to-dismiss layer
-        let dismiss_layer = widget::mouse_area(widget::container(widget::Space::new(
-            Length::Fill,
-            Length::Fill,
-        )))
-        .on_press(FileAction::CloseContextMenu);
+        // Build menu items for file explorer context
+        let menu_items = vec![context_menu::MenuItem::new(
+            "Delete",
+            FileAction::DeleteItem(menu_state.target_path.clone()),
+        )
+        .with_icon(assets::DELETE_LOGO)];
+
+        // Create dismiss layer and menu using generic context_menu module
+        let dismiss_layer = context_menu::create_dismiss_layer(FileAction::CloseContextMenu);
+        let menu = context_menu::view_context_menu(&menu_state.position, menu_items);
 
         // Stack: main content, dismiss layer, context menu
         widget::Stack::new()
             .push(main_content)
             .push(dismiss_layer)
-            .push(view_context_menu(menu_state))
+            .push(menu).height(Length::Fill).width(Length::Fill)
             .into()
     } else {
         main_content.into()
     };
 
     // Wrap everything in a mouse_area to track cursor position
-    widget::mouse_area(content)
-        .on_move(FileAction::CursorMoved)
-        .into()
+    widget::container(
+        widget::mouse_area(content)
+            .on_move(FileAction::CursorMoved)
+    ).height(Length::Fill).width(Length::Fill).into()
 }

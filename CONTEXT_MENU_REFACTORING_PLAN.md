@@ -57,15 +57,16 @@ Create a generic `view_context_menu` function:
 
 ```rust
 pub fn view_context_menu<'a, Message>(
-    position: iced::Point,
-    items: Vec<MenuItem<'a, Message>>,
+    position: &'a iced::Point,
+    items: Vec<MenuItem<Message>>,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a
 ```
 
 **Changes from current implementation**:
-- Accept position directly (iced::Point) instead of domain-specific state
+- Accept position as reference (&iced::Point) instead of domain-specific state
+- Position reference allows Element lifetime to be non-static
 - Accept menu items as parameter for complete flexibility
 - Generic over `Message` type instead of hardcoded `FileAction`
 - No knowledge of files, directories, paths, or any domain concepts
@@ -126,7 +127,7 @@ let content: Element<'_, FileAction> = if let Some(menu_state) = &state.context_
     ];
 
     let dismiss_layer = create_dismiss_layer(FileAction::CloseContextMenu);
-    let menu = view_context_menu(menu_state.position, menu_items);
+    let menu = view_context_menu(&menu_state.position, menu_items);
 
     widget::Stack::new()
         .push(main_content)
@@ -156,21 +157,21 @@ The context_menu module is a pure UI component with no domain-specific state. It
 
 ```rust
 // Menu item builder
-pub struct MenuItem<'a, Message> {
+pub struct MenuItem<Message> {
     pub label: String,
-    pub icon: Option<&'a [u8]>,
+    pub icon: Option<&'static [u8]>,
     pub action: Message,
 }
 
-impl<'a, Message> MenuItem<'a, Message> {
+impl<Message> MenuItem<Message> {
     pub fn new(label: impl Into<String>, action: Message) -> Self;
-    pub fn with_icon(mut self, icon: &'a [u8]) -> Self;
+    pub fn with_icon(mut self, icon: &'static [u8]) -> Self;
 }
 
 // Rendering functions
 pub fn view_context_menu<'a, Message>(
-    position: iced::Point,
-    items: Vec<MenuItem<'a, Message>>,
+    position: &'a iced::Point,
+    items: Vec<MenuItem<Message>>,
 ) -> Element<'a, Message>
 where
     Message: Clone + 'a;
@@ -187,11 +188,12 @@ where
 1. **Completely generic**: Works for files, text selections, canvas objects, or anything else
 2. **Zero domain knowledge**: Context menu knows nothing about what it's displaying a menu for
 3. **Pure UI component**: Only responsible for rendering and positioning
-4. **Generic over Message types**: Any module can use it with their own action enum
-5. **Flexible menu items**: Easily add/remove items, icons are optional
-6. **Calling code owns context**: Explorer manages file-specific state, editor manages text selection state, etc.
-7. **Easy to extend**: Add new menu items without touching core rendering logic
-8. **Consistent styling**: All menus in the app will look the same
+4. **Flexible lifetimes**: Returns Element<'a, Message> not Element<'static, Message>
+5. **Generic over Message types**: Any module can use it with their own action enum
+6. **Flexible menu items**: Easily add/remove items, icons are optional
+7. **Calling code owns context**: Explorer manages file-specific state, editor manages text selection state, etc.
+8. **Easy to extend**: Add new menu items without touching core rendering logic
+9. **Consistent styling**: All menus in the app will look the same
 
 ## Example Usage in Other Modules
 
@@ -215,7 +217,7 @@ enum EditorAction {
     CloseMenu,
 }
 
-fn view_editor_menu(position: iced::Point) -> Element<'_, EditorAction> {
+fn view_editor_menu(position: &iced::Point) -> Element<'_, EditorAction> {
     let items = vec![
         MenuItem::new("Cut", EditorAction::Cut).with_icon(assets::CUT_ICON),
         MenuItem::new("Copy", EditorAction::Copy).with_icon(assets::COPY_ICON),
@@ -246,7 +248,7 @@ enum CanvasAction {
     CloseMenu,
 }
 
-fn view_canvas_menu(position: iced::Point) -> Element<'_, CanvasAction> {
+fn view_canvas_menu(position: &iced::Point) -> Element<'_, CanvasAction> {
     let items = vec![
         MenuItem::new("Bring to Front", CanvasAction::BringToFront),
         MenuItem::new("Send to Back", CanvasAction::SendToBack),
@@ -278,7 +280,7 @@ enum ListAction {
     CloseMenu,
 }
 
-fn view_list_menu(position: iced::Point) -> Element<'_, ListAction> {
+fn view_list_menu(position: &iced::Point) -> Element<'_, ListAction> {
     let items = vec![
         MenuItem::new("Edit", ListAction::Edit).with_icon(assets::EDIT_ICON),
         MenuItem::new("Delete", ListAction::Delete).with_icon(assets::DELETE_ICON),
