@@ -268,8 +268,7 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
     };
 
     // Wrap everything in a mouse_area to track cursor position
-    widget::container(widget::mouse_area(content).on_move(FileAction::CursorMoved))
-        .height(Length::Fill)
-        .width(Length::Fill)
+    widget::mouse_area(content)
+        .on_move(FileAction::CursorMoved)
         .into()
 }
