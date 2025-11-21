@@ -8,9 +8,10 @@ use std::fs;
 
 #[derive(Debug, Clone)]
 pub enum FileAction {
-    Select(String, bool),
-    ContextMenu(String, bool),
+    Select(String),
+    ContextMenu(String),
     CloseContextMenu,
+    EditItem(String),
     DeleteItem(String),
     CursorMoved(iced::Point),
 }
@@ -19,7 +20,6 @@ pub enum FileAction {
 pub struct ContextMenuState {
     pub target_path: String,
     #[allow(dead_code)]
-    pub is_directory: bool,
     pub position: iced::Point,
 }
 
@@ -43,13 +43,14 @@ impl Default for State {
 
 pub fn update(state: &mut State, action: FileAction) {
     match action {
-        FileAction::Select(path, is_dir) => {
-            if is_dir {
+        FileAction::Select(path) => {
+            let path_obj = std::path::Path::new(&path);
+            if path_obj.is_dir() {
                 if state.expanded.contains(&path) {
-                    debug!("Directory '{}' is expanded", path);
+                    debug!("Directory '{}' is collapsed", path);
                     state.expanded.remove(&path);
                 } else {
-                    debug!("Directory '{}' is collapsed", path);
+                    debug!("Directory '{}' is expanded", path);
                     state.expanded.insert(path.clone());
                 }
             }
@@ -63,17 +64,17 @@ pub fn update(state: &mut State, action: FileAction) {
             // Close context menu on any selection
             state.context_menu = None;
         }
-        FileAction::ContextMenu(path, is_dir) => {
+        FileAction::ContextMenu(path) => {
+            let path_obj = std::path::Path::new(&path);
             debug!(
                 "Context menu opened for {} '{}' at position ({}, {})",
-                if is_dir { "directory" } else { "secret" },
+                if path_obj.is_dir() { "directory" } else { "secret" },
                 path,
                 state.cursor_position.x,
                 state.cursor_position.y
             );
             state.context_menu = Some(ContextMenuState {
                 target_path: path,
-                is_directory: is_dir,
                 position: state.cursor_position,
             });
         }
@@ -81,28 +82,21 @@ pub fn update(state: &mut State, action: FileAction) {
             debug!("Context menu closed");
             state.context_menu = None;
         }
+        FileAction::EditItem(path) => {
+            debug!("Edit secret: {}", path);
+        }
         FileAction::DeleteItem(path) => {
-            debug!("Deleting: {}", path);
             let path_obj = std::path::Path::new(&path);
-            let result = if path_obj.is_dir() {
-                fs::remove_dir_all(&path)
+            if path_obj.is_dir() {
+                debug!("Deleting directory: {}", path);
             } else {
-                fs::remove_file(&path)
+                debug!("Deleting secret: {}", path);
             };
 
-            match result {
-                Ok(_) => {
-                    debug!("Successfully deleted: {}", path);
-                    // Remove from selected set if it was selected
-                    state.selected.remove(&path);
-                    // Remove from expanded set if it was expanded
-                    state.expanded.remove(&path);
-                }
-                Err(e) => {
-                    error!("Failed to delete '{}': {}", path, e);
-                }
-            }
-
+            // Remove from selected set if it was selected
+            state.selected.remove(&path);
+            // Remove from expanded set if it was expanded
+            state.expanded.remove(&path);
             // Close context menu
             state.context_menu = None;
         }
@@ -133,7 +127,7 @@ fn create_row<'a>(
         .width(Length::Fill);
 
     let button = widget::button(row)
-        .on_press(FileAction::Select(full_path.to_string(), is_directory))
+        .on_press(FileAction::Select(full_path.to_string()))
         .style(|theme: &iced::Theme, status| {
             let base = widget::button::Style {
                 background: None,
@@ -154,7 +148,7 @@ fn create_row<'a>(
         .width(Length::Fill);
 
     widget::mouse_area(button)
-        .on_right_press(FileAction::ContextMenu(full_path.to_string(), is_directory))
+        .on_right_press(FileAction::ContextMenu(full_path.to_string()))
         .into()
 }
 
@@ -245,11 +239,18 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
     // If context menu is open, render it on top
     let content: Element<'_, FileAction> = if let Some(menu_state) = &state.context_menu {
         // Build menu items for file explorer context
-        let menu_items = vec![context_menu::MenuItem::new(
-            "Delete",
-            FileAction::DeleteItem(menu_state.target_path.clone()),
-        )
-        .with_icon(assets::DELETE_LOGO)];
+        let menu_items = vec![
+            context_menu::MenuItem::new(
+                "Edit",
+                FileAction::EditItem(menu_state.target_path.clone()),
+            )
+            .with_icon(assets::EDIT_LOGO),
+            context_menu::MenuItem::new(
+                "Delete",
+                FileAction::DeleteItem(menu_state.target_path.clone()),
+            )
+            .with_icon(assets::DELETE_LOGO),
+        ];
 
         // Create dismiss layer and menu using generic context_menu module
         let dismiss_layer = context_menu::create_dismiss_layer(FileAction::CloseContextMenu);
