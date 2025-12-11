@@ -5,27 +5,28 @@ use iced::{Element, Length};
 use log::{debug, error, trace};
 use std::collections::HashSet;
 use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub enum FileAction {
-    Select(String),
-    ContextMenu(String),
+    Select(PathBuf),
+    ContextMenu(PathBuf),
     CloseContextMenu,
-    EditItem(String),
-    DeleteItem(String),
+    EditItem(PathBuf),
+    DeleteItem(PathBuf),
     CursorMoved(iced::Point),
 }
 
 #[derive(Debug, Clone)]
 pub struct ContextMenuState {
-    pub target_path: String,
+    pub target_path: PathBuf,
     #[allow(dead_code)]
     pub position: iced::Point,
 }
 
 pub struct State {
-    expanded: HashSet<String>,
-    selected: HashSet<String>,
+    expanded: HashSet<PathBuf>,
+    selected: HashSet<PathBuf>,
     context_menu: Option<ContextMenuState>,
     cursor_position: iced::Point,
 }
@@ -44,19 +45,18 @@ impl Default for State {
 pub fn update(state: &mut State, action: FileAction) {
     match action {
         FileAction::Select(path) => {
-            let path_obj = std::path::Path::new(&path);
-            if path_obj.is_dir() {
+            if path.is_dir() {
                 if state.expanded.contains(&path) {
-                    debug!("Directory '{}' is collapsed", path);
+                    debug!("Directory '{}' is collapsed", path.display());
                     state.expanded.remove(&path);
                 } else {
-                    debug!("Directory '{}' is expanded", path);
+                    debug!("Directory '{}' is expanded", path.display());
                     state.expanded.insert(path.clone());
                 }
             }
 
             if !state.selected.contains(&path) {
-                debug!("Path '{}' is selected", path);
+                debug!("Path '{}' is selected", path.display());
                 state.selected.clear();
                 state.selected.insert(path);
             }
@@ -65,15 +65,10 @@ pub fn update(state: &mut State, action: FileAction) {
             state.context_menu = None;
         }
         FileAction::ContextMenu(path) => {
-            let path_obj = std::path::Path::new(&path);
             debug!(
                 "Context menu opened for {} '{}' at position ({}, {})",
-                if path_obj.is_dir() {
-                    "directory"
-                } else {
-                    "secret"
-                },
-                path,
+                if path.is_dir() { "directory" } else { "secret" },
+                path.display(),
                 state.cursor_position.x,
                 state.cursor_position.y
             );
@@ -87,14 +82,13 @@ pub fn update(state: &mut State, action: FileAction) {
             state.context_menu = None;
         }
         FileAction::EditItem(path) => {
-            debug!("Edit secret: {}", path);
+            debug!("Edit secret: {}", path.display());
         }
         FileAction::DeleteItem(path) => {
-            let path_obj = std::path::Path::new(&path);
-            if path_obj.is_dir() {
-                debug!("Deleting directory: {}", path);
+            if path.is_dir() {
+                debug!("Deleting directory: {}", path.display());
             } else {
-                debug!("Deleting secret: {}", path);
+                debug!("Deleting secret: {}", path.display());
             };
 
             // Remove from selected set if it was selected
@@ -111,8 +105,7 @@ pub fn update(state: &mut State, action: FileAction) {
 }
 
 fn create_row<'a>(
-    filename: &str,
-    full_path: &str,
+    path: PathBuf,
     indent_width: u16,
     is_directory: bool,
     indent_level: u16,
@@ -123,15 +116,18 @@ fn create_row<'a>(
     } else {
         assets::SECRET_LOGO
     });
+
+
+    let filename = path.file_name().unwrap_or_default();
     let icon = widget::svg(asset).width(20);
     let space = widget::Space::with_width(10);
-    let text = widget::text!["{}", filename].width(Length::Fill);
+    let text = widget::text!["{}", filename.display()].width(Length::Fill);
     let row = widget::row![indent, icon, space, text]
         .align_y(iced::Alignment::Center)
         .width(Length::Fill);
 
     let button = widget::button(row)
-        .on_press(FileAction::Select(full_path.to_string()))
+        .on_press(FileAction::Select(path.clone()))
         .style(|theme: &iced::Theme, status| {
             let base = widget::button::Style {
                 background: None,
@@ -152,7 +148,7 @@ fn create_row<'a>(
         .width(Length::Fill);
 
     widget::mouse_area(button)
-        .on_right_press(FileAction::ContextMenu(full_path.to_string()))
+        .on_right_press(FileAction::ContextMenu(path))
         .into()
 }
 
@@ -184,11 +180,7 @@ fn render_directory_contents(
             }
         };
 
-        let full_path = entry_path.display().to_string();
-
         if let Some(filename) = entry_path.file_name() {
-            let filename = filename.display().to_string();
-
             trace!(
                 "Creating row for {} {} at indent level {}",
                 if entry_path.is_dir() {
@@ -196,14 +188,13 @@ fn render_directory_contents(
                 } else {
                     "file"
                 },
-                filename,
+                filename.display(),
                 indent_level
             );
 
-            let is_expanded = state.expanded.contains(&full_path);
+            let is_expanded = state.expanded.contains(&entry_path);
             let row = create_row(
-                &filename,
-                &full_path,
+                entry_path.clone(),
                 indent_width,
                 entry_path.is_dir(),
                 indent_level,
