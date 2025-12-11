@@ -20,7 +20,6 @@ pub enum FileAction {
 #[derive(Debug, Clone)]
 pub struct ContextMenuState {
     pub target_path: PathBuf,
-    #[allow(dead_code)]
     pub position: iced::Point,
 }
 
