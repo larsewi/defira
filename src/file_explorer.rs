@@ -1,6 +1,7 @@
 use crate::assets;
 use crate::context_menu;
 use iced::widget;
+use iced::widget::text_editor;
 use iced::{Element, Length};
 use log::{debug, error, trace};
 use std::collections::HashSet;
@@ -15,6 +16,9 @@ pub enum FileAction {
     EditItem(PathBuf),
     DeleteItem(PathBuf),
     CursorMoved(iced::Point),
+    // Editor actions
+    CloseEditor,
+    EditorAction(text_editor::Action),
 }
 
 #[derive(Debug, Clone)]
@@ -28,6 +32,9 @@ pub struct State {
     selected: HashSet<PathBuf>,
     context_menu: Option<ContextMenuState>,
     cursor_position: iced::Point,
+    // Editor state
+    opened_file: Option<PathBuf>,
+    editor_content: text_editor::Content,
 }
 
 impl Default for State {
@@ -37,6 +44,25 @@ impl Default for State {
             selected: HashSet::new(),
             context_menu: None,
             cursor_position: iced::Point::ORIGIN,
+            opened_file: None,
+            editor_content: text_editor::Content::new(),
+        }
+    }
+}
+
+fn open_file_in_editor(state: &mut State, path: &PathBuf) {
+    debug!("Opening file in editor: {}", path.display());
+    match fs::read_to_string(path) {
+        Ok(content) => {
+            state.opened_file = Some(path.clone());
+            state.editor_content = text_editor::Content::with_text(&content);
+        }
+        Err(e) => {
+            error!("Failed to read file '{}': {}", path.display(), e);
+            // Still open the file but show error message
+            state.opened_file = Some(path.clone());
+            state.editor_content =
+                text_editor::Content::with_text(&format!("Error reading file: {}", e));
         }
     }
 }
@@ -52,6 +78,9 @@ pub fn update(state: &mut State, action: FileAction) {
                     debug!("Directory '{}' is expanded", path.display());
                     state.expanded.insert(path.clone());
                 }
+            } else {
+                // For files, open in editor
+                open_file_in_editor(state, &path);
             }
 
             if !state.selected.contains(&path) {
@@ -82,6 +111,16 @@ pub fn update(state: &mut State, action: FileAction) {
         }
         FileAction::EditItem(path) => {
             debug!("Edit secret: {}", path.display());
+            open_file_in_editor(state, &path);
+            state.context_menu = None;
+        }
+        FileAction::CloseEditor => {
+            debug!("Closing editor");
+            state.opened_file = None;
+            state.editor_content = text_editor::Content::new();
+        }
+        FileAction::EditorAction(action) => {
+            state.editor_content.perform(action);
         }
         FileAction::DeleteItem(path) => {
             if path.is_dir() {
@@ -226,6 +265,80 @@ fn render_directory_contents(
     }
 }
 
+fn view_editor_panel(state: &State) -> Element<'_, FileAction> {
+    const CONTENT_PADDING: u16 = 10;
+
+    if let Some(opened_file) = &state.opened_file {
+        let filename = opened_file
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Unknown".to_string());
+
+        // Header with filename and close button
+        let title = widget::text(filename).size(16);
+        let close_button = widget::button(widget::text("X").size(14))
+            .on_press(FileAction::CloseEditor)
+            .style(|theme: &iced::Theme, status| {
+                let base = widget::button::Style {
+                    background: None,
+                    text_color: theme.palette().text,
+                    border: iced::Border::default(),
+                    shadow: iced::Shadow::default(),
+                };
+                match status {
+                    widget::button::Status::Hovered => widget::button::Style {
+                        background: Some(iced::Background::Color(iced::Color::from_rgba(
+                            0.8, 0.2, 0.2, 0.3,
+                        ))),
+                        ..base
+                    },
+                    _ => base,
+                }
+            })
+            .padding(4);
+
+        let header = widget::row![title, widget::horizontal_space(), close_button]
+            .align_y(iced::Alignment::Center)
+            .padding(5);
+
+        let header_container = widget::container(header)
+            .style(|theme: &iced::Theme| widget::container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgba(
+                    0.2, 0.2, 0.2, 0.3,
+                ))),
+                border: iced::Border {
+                    color: theme.palette().text,
+                    width: 0.0,
+                    radius: 0.0.into(),
+                },
+                ..Default::default()
+            })
+            .width(Length::Fill);
+
+        // Editor text area
+        let editor = widget::text_editor(&state.editor_content)
+            .on_action(FileAction::EditorAction)
+            .height(Length::Fill);
+
+        let editor_container = widget::container(editor).padding(CONTENT_PADDING);
+
+        widget::column![header_container, editor_container]
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .into()
+    } else {
+        // No file open - show placeholder
+        let placeholder = widget::text("Select a file to view its contents")
+            .size(14)
+            .color(iced::Color::from_rgba(0.5, 0.5, 0.5, 1.0));
+
+        widget::container(placeholder)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .into()
+    }
+}
+
 pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
     const INDENT_WIDTH: u16 = 24;
@@ -239,8 +352,26 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
 
     let file_list = widget::Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = widget::scrollable(file_list);
-    let main_content = widget::container(scrollable_list)
+    let file_explorer_panel = widget::container(scrollable_list)
         .padding(CONTENT_PADDING)
+        .width(Length::FillPortion(1));
+
+    // Editor panel on the right
+    let editor_panel = widget::container(view_editor_panel(state))
+        .width(Length::FillPortion(2))
+        .height(Length::Fill)
+        .style(|theme: &iced::Theme| widget::container::Style {
+            border: iced::Border {
+                color: theme.palette().text,
+                width: 1.0,
+                radius: 0.0.into(),
+            },
+            ..Default::default()
+        });
+
+    // Split layout: file explorer left, editor right
+    let split_layout = widget::row![file_explorer_panel, editor_panel]
+        .height(Length::Fill)
         .width(Length::Fill);
 
     // If context menu is open, render it on top
@@ -265,14 +396,14 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
 
         // Stack: main content, dismiss layer, context menu
         widget::Stack::new()
-            .push(main_content)
+            .push(split_layout)
             .push(dismiss_layer)
             .push(menu)
             .height(Length::Fill)
             .width(Length::Fill)
             .into()
     } else {
-        main_content.into()
+        split_layout.into()
     };
 
     // Wrap everything in a mouse_area to track cursor position
