@@ -34,7 +34,7 @@ pub struct State {
     cursor_position: iced::Point,
     // Editor state
     opened_file: Option<PathBuf>,
-    editor_content: text_editor::Content,
+    editor_content: Option<text_editor::Content>,
 }
 
 impl Default for State {
@@ -45,7 +45,7 @@ impl Default for State {
             context_menu: None,
             cursor_position: iced::Point::ORIGIN,
             opened_file: None,
-            editor_content: text_editor::Content::new(),
+            editor_content: None,
         }
     }
 }
@@ -55,14 +55,11 @@ fn open_file_in_editor(state: &mut State, path: &PathBuf) {
     match fs::read_to_string(path) {
         Ok(content) => {
             state.opened_file = Some(path.clone());
-            state.editor_content = text_editor::Content::with_text(&content);
+            state.editor_content = Some(text_editor::Content::with_text(&content));
         }
         Err(e) => {
             error!("Failed to read file '{}': {}", path.display(), e);
-            // Still open the file but show error message
-            state.opened_file = Some(path.clone());
-            state.editor_content =
-                text_editor::Content::with_text(&format!("Error reading file: {}", e));
+            state.editor_content = None
         }
     }
 }
@@ -117,10 +114,12 @@ pub fn update(state: &mut State, action: FileAction) {
         FileAction::CloseEditor => {
             debug!("Closing editor");
             state.opened_file = None;
-            state.editor_content = text_editor::Content::new();
+            state.editor_content = None;
         }
         FileAction::EditorAction(action) => {
-            state.editor_content.perform(action);
+            if let Some(ref mut content) = state.editor_content {
+                content.perform(action);
+            }
         }
         FileAction::DeleteItem(path) => {
             if path.is_dir() {
@@ -268,8 +267,8 @@ fn render_directory_contents(
 fn view_editor_panel(state: &State) -> Element<'_, FileAction> {
     const CONTENT_PADDING: u16 = 10;
 
-    if let Some(opened_file) = &state.opened_file {
-        let filename = opened_file
+    if let Some(file) = &state.opened_file {
+        let filename = file
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "Unknown".to_string());
@@ -278,60 +277,41 @@ fn view_editor_panel(state: &State) -> Element<'_, FileAction> {
         let title = widget::text(filename).size(16);
         let close_button = widget::button(widget::text("X").size(14))
             .on_press(FileAction::CloseEditor)
-            .style(|theme: &iced::Theme, status| {
-                let base = widget::button::Style {
-                    background: None,
-                    text_color: theme.palette().text,
-                    border: iced::Border::default(),
-                    shadow: iced::Shadow::default(),
-                };
-                match status {
-                    widget::button::Status::Hovered => widget::button::Style {
-                        background: Some(iced::Background::Color(iced::Color::from_rgba(
-                            0.8, 0.2, 0.2, 0.3,
-                        ))),
-                        ..base
-                    },
-                    _ => base,
-                }
-            })
             .padding(4);
 
         let header = widget::row![title, widget::horizontal_space(), close_button]
             .align_y(iced::Alignment::Center)
             .padding(5);
 
-        let header_container = widget::container(header)
-            .style(|theme: &iced::Theme| widget::container::Style {
-                background: Some(iced::Background::Color(iced::Color::from_rgba(
-                    0.2, 0.2, 0.2, 0.3,
-                ))),
-                border: iced::Border {
-                    color: theme.palette().text,
-                    width: 0.0,
-                    radius: 0.0.into(),
-                },
-                ..Default::default()
-            })
-            .width(Length::Fill);
+        let header_container = widget::container(header).width(Length::Fill);
 
-        // Editor text area
-        let editor = widget::text_editor(&state.editor_content)
-            .on_action(FileAction::EditorAction)
-            .height(Length::Fill);
+        if let Some(content) = &state.editor_content {
+            // Editor text area
+            let editor = widget::text_editor(&content)
+                .on_action(FileAction::EditorAction)
+                .height(Length::Fill);
 
-        let editor_container = widget::container(editor).padding(CONTENT_PADDING);
+            let editor_container = widget::container(editor).padding(CONTENT_PADDING);
 
-        widget::column![header_container, editor_container]
-            .height(Length::Fill)
-            .width(Length::Fill)
-            .into()
+            widget::column![header_container, editor_container]
+                .height(Length::Fill)
+                .width(Length::Fill)
+                .into()
+        } else {
+            // No file open - show placeholder
+            let placeholder = widget::text("Failed to render file content");
+            let placeholder = widget::container(placeholder)
+                .center_x(Length::Fill)
+                .center_y(Length::Fill);
+
+            widget::column![header_container, placeholder]
+                .height(Length::Fill)
+                .width(Length::Fill)
+                .into()
+        }
     } else {
         // No file open - show placeholder
-        let placeholder = widget::text("Select a file to view its contents")
-            .size(14)
-            .color(iced::Color::from_rgba(0.5, 0.5, 0.5, 1.0));
-
+        let placeholder = widget::text("Select a file to view its contents");
         widget::container(placeholder)
             .center_x(Length::Fill)
             .center_y(Length::Fill)
@@ -359,15 +339,7 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
     // Editor panel on the right
     let editor_panel = widget::container(view_editor_panel(state))
         .width(Length::FillPortion(2))
-        .height(Length::Fill)
-        .style(|theme: &iced::Theme| widget::container::Style {
-            border: iced::Border {
-                color: theme.palette().text,
-                width: 1.0,
-                radius: 0.0.into(),
-            },
-            ..Default::default()
-        });
+        .height(Length::Fill);
 
     // Split layout: file explorer left, editor right
     let split_layout = widget::row![file_explorer_panel, editor_panel]
