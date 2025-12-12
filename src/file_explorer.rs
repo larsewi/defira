@@ -222,6 +222,8 @@ fn render_directory_contents(
 pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
     const INDENT_WIDTH: u16 = 24;
+    const CONTENT_PADDING: u16 = 10;
+
     let dir = std::path::Path::new(".");
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
@@ -230,7 +232,7 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
     let file_list = widget::Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = widget::scrollable(file_list);
     let main_content = widget::container(scrollable_list)
-        .padding(10)
+        .padding(CONTENT_PADDING)
         .width(Length::Fill);
 
     // If context menu is open, render it on top
