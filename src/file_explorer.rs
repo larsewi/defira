@@ -16,7 +16,6 @@ pub enum FileAction {
     EditItem(PathBuf),
     DeleteItem(PathBuf),
     CursorMoved(iced::Point),
-    // Editor actions
     CloseEditor,
     EditorAction(text_editor::Action),
 }
@@ -32,7 +31,6 @@ pub struct State {
     selected: HashSet<PathBuf>,
     context_menu: Option<ContextMenuState>,
     cursor_position: iced::Point,
-    // Editor state
     opened_file: Option<PathBuf>,
     editor_content: Option<text_editor::Content>,
 }
@@ -76,7 +74,7 @@ pub fn update(state: &mut State, action: FileAction) {
                     state.expanded.insert(path.clone());
                 }
             } else {
-                // For files, open in editor
+                debug!("Opened '{}' in editor", path.display());
                 open_file_in_editor(state, &path);
             }
 
@@ -85,9 +83,6 @@ pub fn update(state: &mut State, action: FileAction) {
                 state.selected.clear();
                 state.selected.insert(path);
             }
-
-            // Close context menu on any selection
-            state.context_menu = None;
         }
         FileAction::ContextMenu(path) => {
             debug!(
@@ -149,13 +144,15 @@ fn create_row<'a>(
     is_selected: bool,
 ) -> Element<'a, FileAction> {
     let indent = widget::Space::with_width(indent_width * indent_level);
-    let asset = widget::svg::Handle::from_memory(if is_directory {
+
+    let asset = if is_directory {
         assets::FOLDER_LOGO
     } else if path.extension().is_some_and(|ext| ext == "gpg") {
         assets::SECRET_LOGO
     } else {
         assets::FILE_LOGO
-    });
+    };
+    let asset = widget::svg::Handle::from_memory(asset);
 
     let filename = path.file_name().unwrap_or_default();
     let icon = widget::svg(asset).width(20);
@@ -275,43 +272,37 @@ fn view_editor_panel(state: &State) -> Element<'_, FileAction> {
 
         // Header with filename and close button
         let title = widget::text(filename).size(16);
-        let close_button = widget::button(widget::text("X").size(14))
-            .on_press(FileAction::CloseEditor)
-            .padding(4);
+        let close_button =
+            widget::button(widget::text("X").size(14)).on_press(FileAction::CloseEditor);
 
         let header = widget::row![title, widget::horizontal_space(), close_button]
-            .align_y(iced::Alignment::Center)
-            .padding(5);
-
-        let header_container = widget::container(header).width(Length::Fill);
+            .align_y(iced::Alignment::Center);
+        let header = widget::container(header).width(Length::Fill);
 
         if let Some(content) = &state.editor_content {
-            // Editor text area
             let editor = widget::text_editor(&content)
                 .on_action(FileAction::EditorAction)
                 .height(Length::Fill);
 
-            let editor_container = widget::container(editor).padding(CONTENT_PADDING);
+            let editor = widget::container(editor).padding(CONTENT_PADDING);
 
-            widget::column![header_container, editor_container]
+            widget::column![header, editor]
                 .height(Length::Fill)
                 .width(Length::Fill)
                 .into()
         } else {
-            // No file open - show placeholder
-            let placeholder = widget::text("Failed to render file content");
+            let placeholder = widget::text("Failed to render file content...");
             let placeholder = widget::container(placeholder)
                 .center_x(Length::Fill)
                 .center_y(Length::Fill);
 
-            widget::column![header_container, placeholder]
+            widget::column![header, placeholder]
                 .height(Length::Fill)
                 .width(Length::Fill)
                 .into()
         }
     } else {
-        // No file open - show placeholder
-        let placeholder = widget::text("Select a file to view its contents");
+        let placeholder = widget::text("Select a file to view its contents...");
         widget::container(placeholder)
             .center_x(Length::Fill)
             .center_y(Length::Fill)
@@ -323,6 +314,8 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
     const INDENT_WIDTH: u16 = 24;
     const CONTENT_PADDING: u16 = 10;
+    const EXPLORER_FILL_PORTION: u16 = 1;
+    const EDITOR_FILL_PORTION: u16 = 2;
 
     let home = std::env::var("HOME").unwrap_or(".".to_string());
     let dir = std::path::PathBuf::from(format!("{}/ntech/mystiko", home));
@@ -334,11 +327,11 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
     let scrollable_list = widget::scrollable(file_list);
     let file_explorer_panel = widget::container(scrollable_list)
         .padding(CONTENT_PADDING)
-        .width(Length::FillPortion(1));
+        .width(Length::FillPortion(EXPLORER_FILL_PORTION));
 
     // Editor panel on the right
     let editor_panel = widget::container(view_editor_panel(state))
-        .width(Length::FillPortion(2))
+        .width(Length::FillPortion(EDITOR_FILL_PORTION))
         .height(Length::Fill);
 
     // Split layout: file explorer left, editor right
