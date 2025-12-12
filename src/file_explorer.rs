@@ -224,10 +224,11 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_WIDTH: u16 = 24;
     const CONTENT_PADDING: u16 = 10;
 
-    let dir = std::path::Path::new(".");
+    let home = std::env::var("HOME").unwrap_or(".".to_string());
+    let dir = std::path::PathBuf::from(format!("{}/ntech/mystiko", home));
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
-    render_directory_contents(dir, state, INDENT_LEVEL, INDENT_WIDTH, &mut buttons);
+    render_directory_contents(&dir, state, INDENT_LEVEL, INDENT_WIDTH, &mut buttons);
 
     let file_list = widget::Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = widget::scrollable(file_list);
