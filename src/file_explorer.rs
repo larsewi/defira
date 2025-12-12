@@ -221,11 +221,11 @@ fn render_directory_contents(
 
 pub fn view(state: &State) -> Element<'_, FileAction> {
     const INDENT_LEVEL: u16 = 0;
+    const INDENT_WIDTH: u16 = 24;
     let dir = std::path::Path::new(".");
-    let indent_width = 24;
     let mut buttons: Vec<Element<FileAction>> = Vec::new();
 
-    render_directory_contents(dir, state, INDENT_LEVEL, indent_width, &mut buttons);
+    render_directory_contents(dir, state, INDENT_LEVEL, INDENT_WIDTH, &mut buttons);
 
     let file_list = widget::Column::from_vec(buttons).width(Length::Fill);
     let scrollable_list = widget::scrollable(file_list);
