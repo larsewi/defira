@@ -114,7 +114,7 @@ fn create_row<'a>(
     let asset = widget::svg::Handle::from_memory(if is_directory {
         assets::FOLDER_LOGO
     } else if path.extension().is_some_and(|ext| ext == "gpg") {
-        assets::SECRET_FILE_LOGO
+        assets::SECRET_LOGO
     } else {
         assets::FILE_LOGO
     });
@@ -183,6 +183,11 @@ fn render_directory_contents(
         };
 
         if let Some(filename) = entry_path.file_name() {
+            // Skip hidden files (starting with .)
+            if filename.to_string_lossy().starts_with('.') {
+                continue;
+            }
+
             trace!(
                 "Creating row for {} {} at indent level {}",
                 if entry_path.is_dir() {
