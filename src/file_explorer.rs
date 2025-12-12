@@ -106,8 +106,9 @@ pub fn update(state: &mut State, action: FileAction) {
 fn create_row<'a>(
     path: PathBuf,
     indent_width: u16,
-    is_directory: bool,
     indent_level: u16,
+    is_directory: bool,
+    is_selected: bool,
 ) -> Element<'a, FileAction> {
     let indent = widget::Space::with_width(indent_width * indent_level);
     let asset = widget::svg::Handle::from_memory(if is_directory {
@@ -115,7 +116,6 @@ fn create_row<'a>(
     } else {
         assets::SECRET_LOGO
     });
-
 
     let filename = path.file_name().unwrap_or_default();
     let icon = widget::svg(asset).width(20);
@@ -127,18 +127,19 @@ fn create_row<'a>(
 
     let button = widget::button(row)
         .on_press(FileAction::Select(path.clone()))
-        .style(|theme: &iced::Theme, status| {
+        .style(move |theme: &iced::Theme, status| {
+            let selected_bg = iced::Background::Color(iced::Color::from_rgba(0.3, 0.5, 0.8, 0.5));
+            let hover_bg = iced::Background::Color(iced::Color::from_rgba(0.3, 0.5, 0.8, 0.3));
+
             let base = widget::button::Style {
-                background: None,
+                background: if is_selected { Some(selected_bg) } else { None },
                 text_color: theme.palette().text,
                 border: iced::Border::default(),
                 shadow: iced::Shadow::default(),
             };
             match status {
                 widget::button::Status::Hovered => widget::button::Style {
-                    background: Some(iced::Background::Color(iced::Color::from_rgba(
-                        0.3, 0.5, 0.8, 0.3,
-                    ))),
+                    background: Some(hover_bg),
                     ..base
                 },
                 _ => base,
@@ -192,11 +193,13 @@ fn render_directory_contents(
             );
 
             let is_expanded = state.expanded.contains(&entry_path);
+            let is_selected = state.selected.contains(&entry_path);
             let row = create_row(
                 entry_path.clone(),
                 indent_width,
-                entry_path.is_dir(),
                 indent_level,
+                entry_path.is_dir(),
+                is_selected,
             );
             buttons.push(row);
 
