@@ -113,8 +113,10 @@ fn create_row<'a>(
     let indent = widget::Space::with_width(indent_width * indent_level);
     let asset = widget::svg::Handle::from_memory(if is_directory {
         assets::FOLDER_LOGO
+    } else if path.extension().is_some_and(|ext| ext == "gpg") {
+        assets::SECRET_FILE_LOGO
     } else {
-        assets::SECRET_LOGO
+        assets::FILE_LOGO
     });
 
     let filename = path.file_name().unwrap_or_default();

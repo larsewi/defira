@@ -9,3 +9,4 @@ pub const NEW_FILE_LOGO: &[u8] = include_bytes!("../assets/add-file.svg");
 pub const FOLDER_LOGO: &[u8] = include_bytes!("../assets/folder.svg");
 pub const SECRET_FILE_LOGO: &[u8] = include_bytes!("../assets/secret-file.svg");
 pub const SECRET_LOGO: &[u8] = include_bytes!("../assets/secret.svg");
+pub const FILE_LOGO: &[u8] = include_bytes!("../assets/file.svg");
