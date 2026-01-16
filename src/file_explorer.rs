@@ -1,5 +1,6 @@
 use crate::assets;
 use crate::context_menu;
+use crate::password_prompt;
 use iced::widget;
 use iced::widget::text_editor;
 use iced::{Element, Length};
@@ -18,6 +19,7 @@ pub enum FileAction {
     CursorMoved(iced::Point),
     CloseEditor,
     EditorAction(text_editor::Action),
+    PasswordPrompt(password_prompt::Message),
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +35,7 @@ pub struct State {
     cursor_position: iced::Point,
     opened_file: Option<PathBuf>,
     editor_content: Option<text_editor::Content>,
+    password_prompt: Option<password_prompt::State>,
 }
 
 impl Default for State {
@@ -44,12 +47,22 @@ impl Default for State {
             cursor_position: iced::Point::ORIGIN,
             opened_file: None,
             editor_content: None,
+            password_prompt: None,
         }
     }
 }
 
 fn open_file_in_editor(state: &mut State, path: &PathBuf) {
     debug!("Opening file in editor: {}", path.display());
+
+    // This file needs to be decrypted - open password prompt
+    if path.extension().is_some_and(|ext| ext == "gpg") {
+        debug!("File is encrypted, opening password prompt");
+        state.password_prompt = Some(password_prompt::State::new(path.clone()));
+        return;
+    }
+
+    // Otherwise, this is a regular file
     match fs::read_to_string(path) {
         Ok(content) => {
             state.opened_file = Some(path.clone());
@@ -132,6 +145,38 @@ pub fn update(state: &mut State, action: FileAction) {
         }
         FileAction::CursorMoved(position) => {
             state.cursor_position = position;
+        }
+        FileAction::PasswordPrompt(msg) => {
+            match msg {
+                password_prompt::Message::PasswordChanged(password) => {
+                    if let Some(ref mut prompt) = state.password_prompt {
+                        prompt.password = password;
+                    }
+                }
+                password_prompt::Message::ToggleVisibility => {
+                    if let Some(ref mut prompt) = state.password_prompt {
+                        prompt.show_password = !prompt.show_password;
+                    }
+                }
+                password_prompt::Message::Submit => {
+                    if let Some(prompt) = state.password_prompt.take() {
+                        let password = prompt.password;
+                        let path = prompt.target_path;
+                        debug!(
+                            "Password submitted for file '{}': {} characters",
+                            path.display(),
+                            password.len()
+                        );
+                        // TODO: Use password to decrypt the file
+                        // For now, just store it so the caller can access it
+                        // The decryption logic will be added here later
+                    }
+                }
+                password_prompt::Message::Cancel => {
+                    debug!("Password prompt cancelled");
+                    state.password_prompt = None;
+                }
+            }
         }
     }
 }
@@ -339,8 +384,22 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
         .height(Length::Fill)
         .width(Length::Fill);
 
-    // If context menu is open, render it on top
-    let content: Element<'_, FileAction> = if let Some(menu_state) = &state.context_menu {
+    // If password prompt is open, render it on top (highest priority)
+    let content: Element<'_, FileAction> = if let Some(prompt_state) = &state.password_prompt {
+        let backdrop = password_prompt::create_backdrop(FileAction::PasswordPrompt(
+            password_prompt::Message::Cancel,
+        ));
+        let modal = password_prompt::view(prompt_state, FileAction::PasswordPrompt);
+
+        widget::Stack::new()
+            .push(split_layout)
+            .push(backdrop)
+            .push(modal)
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .into()
+    } else if let Some(menu_state) = &state.context_menu {
+        // If context menu is open, render it on top
         // Build menu items for file explorer context
         let menu_items = vec![
             context_menu::MenuItem::new(

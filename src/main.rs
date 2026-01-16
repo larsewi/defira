@@ -1,6 +1,7 @@
 mod assets;
 mod context_menu;
 mod file_explorer;
+mod password_prompt;
 
 fn main() -> iced::Result {
     env_logger::init();
