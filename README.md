@@ -11,3 +11,11 @@ RUST_LOG=defira=debug VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json V
 ```
 sudo apt-get install -y libgpgme-dev
 ```
+
+## Other
+
+To clear the cached password during testing you can do
+
+```
+gpg-connect-agent reloadagent /bye
+```

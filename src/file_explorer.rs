@@ -2,7 +2,6 @@ use crate::assets;
 use crate::context_menu;
 use crate::crypto;
 use crate::error_popup;
-use crate::password_prompt;
 use iced::widget;
 use iced::widget::text_editor;
 use iced::{Element, Length};
@@ -21,7 +20,6 @@ pub enum FileAction {
     CursorMoved(iced::Point),
     CloseEditor,
     EditorAction(text_editor::Action),
-    PasswordPrompt(password_prompt::Message),
     ErrorPopup(error_popup::Message),
 }
 
@@ -38,7 +36,6 @@ pub struct State {
     cursor_position: iced::Point,
     opened_file: Option<PathBuf>,
     editor_content: Option<text_editor::Content>,
-    password_prompt: Option<password_prompt::State>,
     error_popup: Option<error_popup::State>,
 }
 
@@ -51,7 +48,6 @@ impl Default for State {
             cursor_position: iced::Point::ORIGIN,
             opened_file: None,
             editor_content: None,
-            password_prompt: None,
             error_popup: None,
         }
     }
@@ -60,10 +56,36 @@ impl Default for State {
 fn open_file_in_editor(state: &mut State, path: &PathBuf) {
     debug!("Opening file in editor: {}", path.display());
 
-    // This file needs to be decrypted - open password prompt
+    // Check if this is an encrypted file
     if path.extension().is_some_and(|ext| ext == "gpg") {
-        debug!("File is encrypted, opening password prompt");
-        state.password_prompt = Some(password_prompt::State::new(path.clone()));
+        debug!("File is encrypted, attempting decryption");
+
+        // Read the encrypted file
+        match fs::read(path) {
+            Ok(encrypted_data) => {
+                match crypto::decrypt(&encrypted_data) {
+                    Ok(plaintext) => {
+                        debug!("Successfully decrypted file '{}'", path.display());
+                        state.opened_file = Some(path.clone());
+                        state.editor_content = Some(text_editor::Content::with_text(&plaintext));
+                    }
+                    Err(e) => {
+                        error!("Failed to decrypt file '{}': {}", path.display(), e);
+                        state.error_popup = Some(error_popup::State::new(
+                            "Decryption Error",
+                            format!("Failed to decrypt file: {}", e),
+                        ));
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to read encrypted file '{}': {}", path.display(), e);
+                state.error_popup = Some(error_popup::State::new(
+                    "File Read Error",
+                    format!("Could not read file: {}", e),
+                ));
+            }
+        }
         return;
     }
 
@@ -156,68 +178,12 @@ pub fn update(state: &mut State, action: FileAction) {
         FileAction::CursorMoved(position) => {
             state.cursor_position = position;
         }
-        FileAction::PasswordPrompt(msg) => {
-            match msg {
-                password_prompt::Message::PasswordChanged(password) => {
-                    if let Some(ref mut prompt) = state.password_prompt {
-                        prompt.password = password;
-                    }
-                }
-                password_prompt::Message::ToggleVisibility => {
-                    if let Some(ref mut prompt) = state.password_prompt {
-                        prompt.show_password = !prompt.show_password;
-                    }
-                }
-                password_prompt::Message::Submit => {
-                    if let Some(prompt) = state.password_prompt.take() {
-                        handle_password_submit(state, prompt);
-                    }
-                }
-                password_prompt::Message::Cancel => {
-                    debug!("Password prompt cancelled");
-                    state.password_prompt = None;
-                }
-            }
-        }
         FileAction::ErrorPopup(msg) => match msg {
             error_popup::Message::Dismiss => {
                 debug!("Error popup dismissed");
                 state.error_popup = None;
             }
         },
-    }
-}
-
-fn handle_password_submit(state: &mut State, prompt: password_prompt::State) {
-    let path = prompt.target_path;
-    debug!("Password submitted for file '{}'", path.display());
-
-    // Read the encrypted file
-    match fs::read(&path) {
-        Ok(encrypted_data) => {
-            // Attempt to decrypt
-            match crypto::decrypt_with_password(&encrypted_data, &prompt.password) {
-                Ok(plaintext) => {
-                    debug!("Successfully decrypted file '{}'", path.display());
-                    state.opened_file = Some(path);
-                    state.editor_content = Some(text_editor::Content::with_text(&plaintext));
-                }
-                Err(e) => {
-                    error!("Failed to decrypt file '{}': {}", path.display(), e);
-                    state.error_popup = Some(error_popup::State::new(
-                        "Decryption Error",
-                        format!("Failed to decrypt file: {}", e),
-                    ));
-                }
-            }
-        }
-        Err(e) => {
-            error!("Failed to read encrypted file '{}': {}", path.display(), e);
-            state.error_popup = Some(error_popup::State::new(
-                "File Read Error",
-                format!("Could not read file: {}", e),
-            ));
-        }
     }
 }
 
@@ -418,20 +384,6 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
         let backdrop =
             error_popup::create_backdrop(FileAction::ErrorPopup(error_popup::Message::Dismiss));
         let modal = error_popup::view(error_state, FileAction::ErrorPopup);
-
-        widget::Stack::new()
-            .push(split_layout)
-            .push(backdrop)
-            .push(modal)
-            .height(Length::Fill)
-            .width(Length::Fill)
-            .into()
-    } else if let Some(prompt_state) = &state.password_prompt {
-        // Password prompt has second highest priority
-        let backdrop = password_prompt::create_backdrop(FileAction::PasswordPrompt(
-            password_prompt::Message::Cancel,
-        ));
-        let modal = password_prompt::view(prompt_state, FileAction::PasswordPrompt);
 
         widget::Stack::new()
             .push(split_layout)

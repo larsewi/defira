@@ -30,26 +30,21 @@ impl From<std::string::FromUtf8Error> for CryptoError {
     }
 }
 
-/// Decrypt GPG-encrypted data using a password/passphrase.
+/// Decrypt GPG-encrypted data using the gpg-agent's cached passphrase.
 ///
-/// This function uses symmetric (password-based) decryption only.
-/// Key-based decryption is not supported.
-pub fn decrypt_with_password(encrypted_data: &[u8], password: &str) -> Result<String, CryptoError> {
+/// This function attempts decryption without prompting for a password,
+/// relying on the gpg-agent having the passphrase cached. If the passphrase
+/// is not cached, this will fail with an error.
+pub fn decrypt(encrypted_data: &[u8]) -> Result<String, CryptoError> {
     let mut ctx = Context::from_protocol(Protocol::OpenPgp)?;
 
-    // Set the passphrase provider
-    ctx.set_pinentry_mode(gpgme::PinentryMode::Loopback)?;
-    ctx.with_passphrase_provider(|_req: gpgme::PassphraseRequest, out: &mut dyn std::io::Write| {
-        out.write_all(password.as_bytes())?;
-        Ok(())
-    }, |ctx| {
-        let mut plaintext = Vec::new();
-        ctx.decrypt(encrypted_data, &mut plaintext)?;
+    let mut plaintext = Vec::new();
+    ctx.decrypt(encrypted_data, &mut plaintext)?;
 
-        if plaintext.is_empty() {
-            return Err(CryptoError::NoData);
-        }
+    if plaintext.is_empty() {
+        return Err(CryptoError::NoData);
+    }
 
-        String::from_utf8(plaintext).map_err(CryptoError::from)
-    })
+    String::from_utf8(plaintext).map_err(CryptoError::from)
 }
+
