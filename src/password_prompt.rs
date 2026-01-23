@@ -68,24 +68,11 @@ pub fn view<'a, M>(state: &'a State, on_message: fn(Message) -> M) -> Element<'a
 where
     M: Clone + 'a,
 {
-    let filename = state
-        .target_path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "Unknown".to_string());
-
     // Title
-    let title = widget::text("Enter Password")
+    let title = widget::text("Password")
         .size(20)
         .width(Length::Fill)
         .align_x(iced::alignment::Horizontal::Center);
-
-    // Filename being decrypted
-    let file_label = widget::text(format!("Decrypting: {}", filename))
-        .size(14)
-        .style(|theme: &iced::Theme| widget::text::Style {
-            color: Some(theme.palette().text),
-        });
 
     // Password input - use fn pointer which is Copy
     let password_input =  widget::text_input("Enter password...", &state.password)
@@ -133,7 +120,7 @@ where
     .align_y(iced::Alignment::Center);
 
     // Modal content
-    let content = widget::column![title, file_label, password_row, button_row,]
+    let content = widget::column![title, password_row, button_row,]
         .spacing(16)
         .padding(24)
         .width(350);
