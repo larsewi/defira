@@ -160,12 +160,10 @@ pub fn update(state: &mut State, action: FileAction) {
                 }
                 password_prompt::Message::Submit => {
                     if let Some(prompt) = state.password_prompt.take() {
-                        let password = prompt.password;
                         let path = prompt.target_path;
                         debug!(
-                            "Password submitted for file '{}': {} characters",
-                            path.display(),
-                            password.len()
+                            "Password submitted for file '{}'",
+                            path.display()
                         );
                         // TODO: Use password to decrypt the file
                         // For now, just store it so the caller can access it
