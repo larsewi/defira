@@ -1,5 +1,6 @@
 mod assets;
 mod context_menu;
+mod crypto;
 mod error_popup;
 mod file_explorer;
 mod password_prompt;

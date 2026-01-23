@@ -1,5 +1,6 @@
 use crate::assets;
 use crate::context_menu;
+use crate::crypto;
 use crate::error_popup;
 use crate::password_prompt;
 use iced::widget;
@@ -171,9 +172,42 @@ pub fn update(state: &mut State, action: FileAction) {
                     if let Some(prompt) = state.password_prompt.take() {
                         let path = prompt.target_path;
                         debug!("Password submitted for file '{}'", path.display());
-                        // TODO: Use password to decrypt the file
-                        // For now, just store it so the caller can access it
-                        // The decryption logic will be added here later
+
+                        // Read the encrypted file
+                        match fs::read(&path) {
+                            Ok(encrypted_data) => {
+                                // Attempt to decrypt
+                                match crypto::decrypt_with_password(&encrypted_data, &prompt.password) {
+                                    Ok(plaintext) => {
+                                        debug!("Successfully decrypted file '{}'", path.display());
+                                        state.opened_file = Some(path);
+                                        state.editor_content =
+                                            Some(text_editor::Content::with_text(&plaintext));
+                                    }
+                                    Err(crypto::CryptoError::WrongPassword) => {
+                                        error!("Wrong password for file '{}'", path.display());
+                                        state.error_popup = Some(error_popup::State::new(
+                                            "Decryption Failed",
+                                            "Incorrect password. Please try again.",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to decrypt file '{}': {}", path.display(), e);
+                                        state.error_popup = Some(error_popup::State::new(
+                                            "Decryption Error",
+                                            format!("Failed to decrypt file: {}", e),
+                                        ));
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                error!("Failed to read encrypted file '{}': {}", path.display(), e);
+                                state.error_popup = Some(error_popup::State::new(
+                                    "File Read Error",
+                                    format!("Could not read file: {}", e),
+                                ));
+                            }
+                        }
                     }
                 }
                 password_prompt::Message::Cancel => {
