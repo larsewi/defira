@@ -1,5 +1,6 @@
 use crate::assets;
 use crate::context_menu;
+use crate::error_popup;
 use crate::password_prompt;
 use iced::widget;
 use iced::widget::text_editor;
@@ -20,6 +21,7 @@ pub enum FileAction {
     CloseEditor,
     EditorAction(text_editor::Action),
     PasswordPrompt(password_prompt::Message),
+    ErrorPopup(error_popup::Message),
 }
 
 #[derive(Debug, Clone)]
@@ -36,6 +38,7 @@ pub struct State {
     opened_file: Option<PathBuf>,
     editor_content: Option<text_editor::Content>,
     password_prompt: Option<password_prompt::State>,
+    error_popup: Option<error_popup::State>,
 }
 
 impl Default for State {
@@ -48,6 +51,7 @@ impl Default for State {
             opened_file: None,
             editor_content: None,
             password_prompt: None,
+            error_popup: None,
         }
     }
 }
@@ -70,7 +74,12 @@ fn open_file_in_editor(state: &mut State, path: &PathBuf) {
         }
         Err(e) => {
             error!("Failed to read file '{}': {}", path.display(), e);
-            state.editor_content = None
+            state.opened_file = None;
+            state.editor_content = None;
+            state.error_popup = Some(error_popup::State::new(
+                "Error",
+                format!("Failed to read file: {}", e),
+            ));
         }
     }
 }
@@ -161,10 +170,7 @@ pub fn update(state: &mut State, action: FileAction) {
                 password_prompt::Message::Submit => {
                     if let Some(prompt) = state.password_prompt.take() {
                         let path = prompt.target_path;
-                        debug!(
-                            "Password submitted for file '{}'",
-                            path.display()
-                        );
+                        debug!("Password submitted for file '{}'", path.display());
                         // TODO: Use password to decrypt the file
                         // For now, just store it so the caller can access it
                         // The decryption logic will be added here later
@@ -176,6 +182,12 @@ pub fn update(state: &mut State, action: FileAction) {
                 }
             }
         }
+        FileAction::ErrorPopup(msg) => match msg {
+            error_popup::Message::Dismiss => {
+                debug!("Error popup dismissed");
+                state.error_popup = None;
+            }
+        },
     }
 }
 
@@ -326,31 +338,20 @@ fn view_editor_panel(state: &State) -> Element<'_, FileAction> {
             let editor = widget::text_editor(&content)
                 .on_action(FileAction::EditorAction)
                 .height(Length::Fill);
-
             let editor = widget::container(editor).padding(CONTENT_PADDING);
 
-            widget::column![header, editor]
+            return widget::column![header, editor]
                 .height(Length::Fill)
                 .width(Length::Fill)
-                .into()
-        } else {
-            let placeholder = widget::text("Failed to render file content...");
-            let placeholder = widget::container(placeholder)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill);
-
-            widget::column![header, placeholder]
-                .height(Length::Fill)
-                .width(Length::Fill)
-                .into()
+                .into();
         }
-    } else {
-        let placeholder = widget::text("Select a file to view its contents...");
-        widget::container(placeholder)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .into()
     }
+
+    let placeholder = widget::text("Select a file to view its contents...");
+    widget::container(placeholder)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .into()
 }
 
 pub fn view(state: &State) -> Element<'_, FileAction> {
@@ -382,8 +383,21 @@ pub fn view(state: &State) -> Element<'_, FileAction> {
         .height(Length::Fill)
         .width(Length::Fill);
 
-    // If password prompt is open, render it on top (highest priority)
-    let content: Element<'_, FileAction> = if let Some(prompt_state) = &state.password_prompt {
+    // If error popup is open, render it on top (highest priority)
+    let content: Element<'_, FileAction> = if let Some(error_state) = &state.error_popup {
+        let backdrop =
+            error_popup::create_backdrop(FileAction::ErrorPopup(error_popup::Message::Dismiss));
+        let modal = error_popup::view(error_state, FileAction::ErrorPopup);
+
+        widget::Stack::new()
+            .push(split_layout)
+            .push(backdrop)
+            .push(modal)
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .into()
+    } else if let Some(prompt_state) = &state.password_prompt {
+        // Password prompt has second highest priority
         let backdrop = password_prompt::create_backdrop(FileAction::PasswordPrompt(
             password_prompt::Message::Cancel,
         ));

@@ -75,12 +75,12 @@ where
         .align_x(iced::alignment::Horizontal::Center);
 
     // Password input - use fn pointer which is Copy
-    let password_input =  widget::text_input("Enter password...", &state.password)
-            .on_input(move |s| on_message(Message::PasswordChanged(s)))
-            .on_submit(on_message(Message::Submit))
-            .secure(!state.show_password)
-            .padding(10)
-            .width(Length::Fill);
+    let password_input = widget::text_input("Enter password...", &state.password)
+        .on_input(move |s| on_message(Message::PasswordChanged(s)))
+        .on_submit(on_message(Message::Submit))
+        .secure(!state.show_password)
+        .padding(10)
+        .width(Length::Fill);
 
     // Visibility toggle button
     let visibility_icon = if state.show_password { "Hide" } else { "Show" };
@@ -111,13 +111,9 @@ where
     .padding(10)
     .width(80);
 
-    let button_row = widget::row![
-        widget::horizontal_space(),
-        cancel_button,
-        ok_button,
-    ]
-    .spacing(12)
-    .align_y(iced::Alignment::Center);
+    let button_row = widget::row![widget::horizontal_space(), cancel_button, ok_button,]
+        .spacing(12)
+        .align_y(iced::Alignment::Center);
 
     // Modal content
     let content = widget::column![title, password_row, button_row,]
