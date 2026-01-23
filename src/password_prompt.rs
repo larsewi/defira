@@ -88,20 +88,12 @@ where
         });
 
     // Password input - use fn pointer which is Copy
-    let password_input = if state.show_password {
-        widget::text_input("Enter password...", &state.password)
+    let password_input =  widget::text_input("Enter password...", &state.password)
             .on_input(move |s| on_message(Message::PasswordChanged(s)))
             .on_submit(on_message(Message::Submit))
+            .secure(!state.show_password)
             .padding(10)
-            .width(Length::Fill)
-    } else {
-        widget::text_input("Enter password...", &state.password)
-            .on_input(move |s| on_message(Message::PasswordChanged(s)))
-            .on_submit(on_message(Message::Submit))
-            .secure(true)
-            .padding(10)
-            .width(Length::Fill)
-    };
+            .width(Length::Fill);
 
     // Visibility toggle button
     let visibility_icon = if state.show_password { "Hide" } else { "Show" };
