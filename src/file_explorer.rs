@@ -202,13 +202,6 @@ fn handle_password_submit(state: &mut State, prompt: password_prompt::State) {
                     state.opened_file = Some(path);
                     state.editor_content = Some(text_editor::Content::with_text(&plaintext));
                 }
-                Err(crypto::CryptoError::WrongPassword) => {
-                    error!("Wrong password for file '{}'", path.display());
-                    state.error_popup = Some(error_popup::State::new(
-                        "Decryption Failed",
-                        "Incorrect password. Please try again.",
-                    ));
-                }
                 Err(e) => {
                     error!("Failed to decrypt file '{}': {}", path.display(), e);
                     state.error_popup = Some(error_popup::State::new(

@@ -3,7 +3,6 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CryptoError {
-    WrongPassword,
     NoData,
     GpgError(gpgme::Error),
     Utf8Error(std::string::FromUtf8Error),
@@ -12,7 +11,6 @@ pub enum CryptoError {
 impl fmt::Display for CryptoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CryptoError::WrongPassword => write!(f, "Incorrect password"),
             CryptoError::NoData => write!(f, "No data in encrypted file"),
             CryptoError::GpgError(e) => write!(f, "GPG error: {}", e),
             CryptoError::Utf8Error(e) => write!(f, "Invalid UTF-8 in decrypted content: {}", e),
@@ -22,16 +20,7 @@ impl fmt::Display for CryptoError {
 
 impl From<gpgme::Error> for CryptoError {
     fn from(e: gpgme::Error) -> Self {
-        // Check for common error codes that indicate wrong password
-        // GPG_ERR_BAD_PASSPHRASE = 11, GPG_ERR_DECRYPT_FAILED = 152
-        const GPG_ERR_BAD_PASSPHRASE: gpgme::error::ErrorCode = 11;
-        const GPG_ERR_DECRYPT_FAILED: gpgme::error::ErrorCode = 152;
-
-        if e.code() == GPG_ERR_BAD_PASSPHRASE || e.code() == GPG_ERR_DECRYPT_FAILED {
-            CryptoError::WrongPassword
-        } else {
-            CryptoError::GpgError(e)
-        }
+        CryptoError::GpgError(e)
     }
 }
 
