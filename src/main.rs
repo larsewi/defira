@@ -5,6 +5,5 @@ mod password_prompt;
 
 fn main() -> iced::Result {
     env_logger::init();
-    defira::print_hello();
     iced::run("defira", file_explorer::update, file_explorer::view)
 }
